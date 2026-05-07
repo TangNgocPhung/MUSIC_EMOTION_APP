@@ -33,6 +33,7 @@ from psycopg2.extras import RealDictCursor
 try:
     import plotly.express as px
     import plotly.graph_objects as go
+    import plotly.io as pio
     HAS_PLOTLY = True
 except ImportError:
     HAS_PLOTLY = False
@@ -46,6 +47,352 @@ st.set_page_config(
     layout='wide',
     initial_sidebar_state='expanded',
 )
+
+# ============================================================
+# CUSTOM CSS — Tô vẽ lại giao diện
+# ============================================================
+st.markdown("""
+<style>
+/* ---------- Import fonts ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+html, body, [class*="css"]  {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
+}
+
+/* ---------- App background ---------- */
+.stApp {
+    background:
+        radial-gradient(circle at 0% 0%, rgba(99,102,241,0.07) 0%, transparent 40%),
+        radial-gradient(circle at 100% 0%, rgba(236,72,153,0.06) 0%, transparent 40%),
+        radial-gradient(circle at 50% 100%, rgba(16,185,129,0.05) 0%, transparent 50%),
+        #fafbff;
+}
+
+/* ---------- Block container spacing ---------- */
+.block-container {
+    padding-top: 2rem !important;
+    padding-bottom: 4rem !important;
+    max-width: 1400px;
+}
+
+/* ---------- Page hero (h1) ---------- */
+h1 {
+    font-family: 'Plus Jakarta Sans','Inter',sans-serif !important;
+    font-weight: 800 !important;
+    font-size: 2.4rem !important;
+    background: linear-gradient(120deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.4rem !important;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid rgba(99,102,241,0.12);
+}
+
+/* ---------- Section headings ---------- */
+h2, h3 {
+    font-family: 'Plus Jakarta Sans','Inter',sans-serif !important;
+    font-weight: 700 !important;
+    color: #1E293B;
+    letter-spacing: -0.01em;
+}
+h3 { font-size: 1.18rem !important; margin-top: 1.4rem !important; }
+
+/* ---------- Sidebar ---------- */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #1E1B4B 0%, #312E81 60%, #4C1D95 100%) !important;
+    border-right: 1px solid rgba(99,102,241,0.4);
+}
+section[data-testid="stSidebar"] * {
+    color: #E0E7FF !important;
+}
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] strong {
+    color: #FFFFFF !important;
+}
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(255,255,255,0.12) !important;
+    margin: 1rem 0 !important;
+}
+section[data-testid="stSidebar"] .stRadio label {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 0.45rem 0.7rem;
+    margin-bottom: 0.35rem !important;
+    transition: all 0.2s ease;
+}
+section[data-testid="stSidebar"] .stRadio label:hover {
+    background: rgba(255,255,255,0.10);
+    transform: translateX(2px);
+}
+
+/* ---------- Sidebar metrics ---------- */
+section[data-testid="stSidebar"] [data-testid="stMetric"] {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.4rem;
+}
+section[data-testid="stSidebar"] [data-testid="stMetricLabel"] {
+    color: #C7D2FE !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600 !important;
+}
+section[data-testid="stSidebar"] [data-testid="stMetricValue"] {
+    color: #FFFFFF !important;
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+}
+
+/* ---------- Main metrics ---------- */
+[data-testid="stMetric"] {
+    background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+    border: 1px solid rgba(99,102,241,0.15);
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
+    box-shadow: 0 4px 14px -6px rgba(99,102,241,0.18);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+[data-testid="stMetric"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px -8px rgba(99,102,241,0.30);
+}
+[data-testid="stMetricLabel"] {
+    color: #64748B !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    font-size: 0.75rem !important;
+    letter-spacing: 0.05em;
+}
+[data-testid="stMetricValue"] {
+    color: #1E293B !important;
+    font-weight: 800 !important;
+    font-size: 1.85rem !important;
+}
+[data-testid="stMetricDelta"] {
+    font-weight: 600 !important;
+}
+
+/* ---------- Buttons ---------- */
+.stButton > button, .stDownloadButton > button {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1.2rem !important;
+    border: 1px solid rgba(99,102,241,0.25) !important;
+    transition: all 0.2s ease !important;
+}
+.stButton > button:hover, .stDownloadButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px -6px rgba(99,102,241,0.4);
+}
+.stButton > button[kind="primary"] {
+    background: linear-gradient(120deg, #6366F1 0%, #8B5CF6 100%) !important;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 4px 12px -4px rgba(99,102,241,0.4) !important;
+}
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 10px 22px -6px rgba(99,102,241,0.55) !important;
+}
+
+/* ---------- Tabs ---------- */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 6px;
+    background: #F1F5F9;
+    padding: 6px;
+    border-radius: 12px;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 9px !important;
+    padding: 0.4rem 1rem !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    background: transparent !important;
+}
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(120deg, #6366F1, #8B5CF6) !important;
+    color: white !important;
+    box-shadow: 0 4px 10px -4px rgba(99,102,241,0.4);
+}
+
+/* ---------- Expanders ---------- */
+.streamlit-expanderHeader, [data-testid="stExpander"] summary {
+    background: linear-gradient(90deg,#F8FAFC,#F1F5F9) !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    color: #1E293B !important;
+}
+[data-testid="stExpander"] {
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 12px !important;
+    background: #FFFFFF !important;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.04) !important;
+    margin-bottom: 0.55rem !important;
+}
+
+/* ---------- DataFrames ---------- */
+[data-testid="stDataFrame"] {
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+}
+
+/* ---------- Inputs ---------- */
+.stTextInput > div > div > input,
+.stTextArea textarea,
+.stSelectbox > div > div,
+.stNumberInput > div > div > input {
+    border-radius: 10px !important;
+    border: 1px solid #E2E8F0 !important;
+}
+.stTextArea textarea:focus,
+.stTextInput > div > div > input:focus {
+    border-color: #6366F1 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
+}
+
+/* ---------- Alert boxes ---------- */
+.stAlert {
+    border-radius: 12px !important;
+    border-left-width: 4px !important;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+}
+
+/* ---------- Dividers ---------- */
+hr {
+    background: linear-gradient(90deg, transparent, rgba(99,102,241,0.25), transparent);
+    height: 1px !important;
+    border: none !important;
+    margin: 1.4rem 0 !important;
+}
+
+/* ---------- File uploader ---------- */
+[data-testid="stFileUploader"] section {
+    background: #F8FAFC !important;
+    border: 2px dashed #C7D2FE !important;
+    border-radius: 12px !important;
+    transition: all 0.2s ease;
+}
+[data-testid="stFileUploader"] section:hover {
+    border-color: #6366F1 !important;
+    background: #EEF2FF !important;
+}
+
+/* ---------- Slider ---------- */
+[data-baseweb="slider"] [role="slider"] {
+    background: #6366F1 !important;
+    border-color: #6366F1 !important;
+}
+
+/* ---------- Plotly chart container ---------- */
+.js-plotly-plot, .plot-container {
+    border-radius: 14px;
+    background: #FFFFFF;
+    padding: 0.4rem;
+    box-shadow: 0 2px 8px -3px rgba(15,23,42,0.08);
+    border: 1px solid #EEF2FF;
+}
+
+/* ---------- Custom hero card ---------- */
+.hero-card {
+    background: linear-gradient(120deg, #6366F1 0%, #8B5CF6 60%, #EC4899 100%);
+    color: white !important;
+    padding: 1.4rem 1.6rem;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px -10px rgba(99,102,241,0.45);
+    margin-bottom: 1.4rem;
+}
+.hero-card h3 { color: white !important; margin: 0 0 .2rem 0 !important; }
+.hero-card p  { color: rgba(255,255,255,0.92) !important; margin: 0; font-size: 0.92rem; }
+
+/* ---------- Section card wrapper ---------- */
+.section-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(99,102,241,0.10);
+    color: #4F46E5;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.4rem;
+}
+
+/* ---------- Footer in sidebar ---------- */
+.sidebar-footer {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+}
+.sidebar-footer strong { color: #FFFFFF !important; }
+
+/* ---------- Highlight diff (giữ nguyên logic, đẹp hơn) ---------- */
+.diff-box {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-left: 4px solid #6366F1;
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    margin: 0.4rem 0 0.9rem 0;
+    line-height: 1.7;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+}
+.sentence-ok {
+    background: #F0FDF4;
+    border-left: 4px solid #10B981;
+    border-radius: 10px;
+    padding: 0.55rem 0.9rem;
+    margin: 0.3rem 0;
+    color: #166534;
+}
+
+/* ---------- Code block ---------- */
+.stCodeBlock {
+    border-radius: 10px !important;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# Plotly default theme — chỉ tô màu, không đổi logic
+# ============================================================
+PLOTLY_TEMPLATE = 'plotly_white'
+CHART_PALETTE = ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B',
+                 '#10B981', '#06B6D4', '#F43F5E', '#A855F7']
+
+if HAS_PLOTLY:
+    pio.templates.default = PLOTLY_TEMPLATE
+
+
+def _beautify_fig(fig):
+    """Áp dụng style chung cho mọi biểu đồ Plotly."""
+    if not HAS_PLOTLY or fig is None:
+        return fig
+    fig.update_layout(
+        font=dict(family='Inter, Segoe UI, sans-serif', size=12, color='#1E293B'),
+        title_font=dict(family='Plus Jakarta Sans, Inter', size=15, color='#1E293B'),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=20, r=20, t=40, b=20),
+        legend=dict(bgcolor='rgba(255,255,255,0.6)', bordercolor='#E2E8F0', borderwidth=1),
+    )
+    return fig
+
 
 # DB_CONFIG = {
     # 'host': 'localhost', 'port': 5432,
@@ -175,19 +522,24 @@ def highlight_diff(src: str, tgt: str) -> str:
         if tag == 'equal':
             html.append(' '.join(s_words[i1:i2]))
         elif tag == 'delete':
-            html.append(f'<span style="background:#ffcccc;text-decoration:line-through">{" ".join(s_words[i1:i2])}</span>')
+            html.append(f'<span style="background:#FEE2E2;color:#991B1B;padding:1px 6px;border-radius:5px;text-decoration:line-through;font-weight:500">{" ".join(s_words[i1:i2])}</span>')
         elif tag == 'insert':
-            html.append(f'<span style="background:#ccffcc;font-weight:bold">{" ".join(t_words[j1:j2])}</span>')
+            html.append(f'<span style="background:#DCFCE7;color:#166534;padding:1px 6px;border-radius:5px;font-weight:600">{" ".join(t_words[j1:j2])}</span>')
         elif tag == 'replace':
-            html.append(f'<span style="background:#ffcccc;text-decoration:line-through">{" ".join(s_words[i1:i2])}</span> <span style="background:#ccffcc;font-weight:bold">{" ".join(t_words[j1:j2])}</span>')
+            html.append(f'<span style="background:#FEE2E2;color:#991B1B;padding:1px 6px;border-radius:5px;text-decoration:line-through;font-weight:500">{" ".join(s_words[i1:i2])}</span> <span style="background:#DCFCE7;color:#166534;padding:1px 6px;border-radius:5px;font-weight:600">{" ".join(t_words[j1:j2])}</span>')
     return ' '.join(html)
 
 
 # ============================================================
 # SIDEBAR
 # ============================================================
-st.sidebar.markdown('# ✍️ English Spell Checker')
-st.sidebar.caption('Đồ án CSDL Nâng cao — Nhóm 7')
+st.sidebar.markdown("""
+<div style="text-align:center;padding:0.6rem 0 0.4rem 0;">
+  <div style="font-size:2.4rem;line-height:1;margin-bottom:.2rem;">✍️</div>
+  <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.05rem;color:#FFFFFF;letter-spacing:-0.01em;">English Spell Checker</div>
+  <div style="font-size:0.78rem;color:#C7D2FE;margin-top:.15rem;">Đồ án CSDL Nâng cao — Nhóm 7</div>
+</div>
+""", unsafe_allow_html=True)
 
 try:
     get_conn()
@@ -230,28 +582,29 @@ st.sidebar.divider()
 
 st.sidebar.markdown(
     """
-    ### 🏫 Trường
-    **Trường Đại học Sư phạm Thành phố Hồ Chí Minh**
+<div class="sidebar-footer">
+<strong>🏫 Trường</strong><br>
+Trường Đại học Sư phạm TP.HCM<br>
+Khoa Công nghệ thông tin<br><br>
 
-    **Khoa Công nghệ thông tin**
+<strong>👥 Nhóm thực hiện</strong><br>
+• Tăng Ngọc Phụng — KHMT836027<br>
+• Hoàng Châu Ngọc Phương — KHMT836028<br>
+• Lê Thị Mai Len — KHMT836015<br><br>
 
-    ### 👥 Nhóm thực hiện
-    - **Tăng Ngọc Phụng** — KHMT836027
-    - **Hoàng Châu Ngọc Phương** — KHMT836028
-    - **Lê Thị Mai Len** — KHMT836015
+<strong>🎓 Chương trình đào tạo</strong><br>
+Khoa học máy tính (ứng dụng)<br>
+Khóa 36 (2025–2027)<br><br>
 
-    ### 🎓 Chương trình đào tạo
-    - **Ngành:** Khoa học máy tính (hướng ứng dụng)
-    - **Khóa:** 36 (2025–2027)
+<strong>👨‍🏫 GV hướng dẫn</strong><br>
+TS. Trần Sơn Hải<br><br>
 
-    ### 👨‍🏫 Giảng viên hướng dẫn
-    - **TS. Trần Sơn Hải**
-
-    ---
-
-    *© 2026 — HCMUE*
-    *Cơ sở dữ liệu nâng cao*
-    """
+<div style="text-align:center;opacity:.7;font-size:.75rem;margin-top:.5rem;">
+© 2026 — HCMUE<br>Cơ sở dữ liệu nâng cao
+</div>
+</div>
+    """,
+    unsafe_allow_html=True,
 )
 
 
@@ -259,7 +612,13 @@ st.sidebar.markdown(
 # PAGE: DASHBOARD (7 biểu đồ)
 # ============================================================
 if page == 'dashboard':
+    st.markdown('<div class="section-pill">Tổng quan</div>', unsafe_allow_html=True)
     st.title('📊 Dashboard — Tổng quan hệ thống')
+    st.markdown(
+        '<div class="hero-card"><h3>Hệ thống phát hiện lỗi chính tả tiếng Anh</h3>'
+        '<p>Tổng hợp các chỉ số chính, phân bố lỗi theo category/type/quốc tịch và các bài luận tiêu biểu trong corpus.</p></div>',
+        unsafe_allow_html=True,
+    )
 
     # KPI
     err_count = query(f'SELECT COUNT(*) AS n FROM {SCHEMA}.predictions WHERE label=1').iloc[0]['n']
@@ -287,7 +646,7 @@ if page == 'dashboard':
                          color_discrete_sequence=px.colors.qualitative.Set2,
                          hole=0)
             fig.update_traces(textposition='inside', textinfo='percent+label')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(_beautify_fig(fig), use_container_width=True)
         else:
             st.bar_chart(df.set_index('category'))
 
@@ -304,7 +663,7 @@ if page == 'dashboard':
                          color_discrete_sequence=px.colors.qualitative.Pastel,
                          hole=0.4)
             fig.update_traces(textposition='outside', textinfo='value+label')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(_beautify_fig(fig), use_container_width=True)
         else:
             st.bar_chart(df.set_index('error_type'))
 
@@ -322,7 +681,7 @@ if page == 'dashboard':
                      color='n_essays', color_continuous_scale='Viridis',
                      text='n_essays')
         fig.update_traces(textposition='outside')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(_beautify_fig(fig), use_container_width=True)
     elif not df.empty:
         st.bar_chart(df.set_index('country'))
 
@@ -340,7 +699,7 @@ if page == 'dashboard':
         if not df.empty and HAS_PLOTLY:
             fig = px.treemap(df, path=['license', 'source'], values='n_pairs',
                              color='n_pairs', color_continuous_scale='Blues')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(_beautify_fig(fig), use_container_width=True)
 
     # Biểu đồ 5: Histogram confidence
     with col2:
@@ -351,9 +710,9 @@ if page == 'dashboard':
         ''')
         if not df.empty and HAS_PLOTLY:
             fig = px.histogram(df, x='confidence', nbins=30,
-                               color_discrete_sequence=['#FF6B6B'])
+                               color_discrete_sequence=['#EC4899'])
             fig.update_layout(bargap=0.05)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(_beautify_fig(fig), use_container_width=True)
 
     # Biểu đồ 6: Top 10 buggy essays (horizontal bar)
     st.subheader('🔝 Top 10 bài luận có nhiều lỗi nhất')
@@ -376,7 +735,7 @@ if page == 'dashboard':
                      text='n_errors')
         fig.update_layout(yaxis={'categoryorder':'total ascending'})
         fig.update_traces(textposition='outside')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(_beautify_fig(fig), use_container_width=True)
 
     # Biểu đồ 7: Heatmap quốc tịch × loại lỗi
     st.subheader('🔥 Heatmap — Lỗi theo quốc tịch × loại')
@@ -397,13 +756,14 @@ if page == 'dashboard':
                                 values='n', aggfunc='sum', fill_value=0)
         fig = px.imshow(pivot, color_continuous_scale='YlOrRd',
                          labels=dict(color='Số lỗi'), aspect='auto', text_auto=True)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(_beautify_fig(fig), use_container_width=True)
 
 
 # ============================================================
 # PAGE: BROWSE ESSAYS
 # ============================================================
 elif page == 'browse':
+    st.markdown('<div class="section-pill">Tra cứu</div>', unsafe_allow_html=True)
     st.title('📚 Tra cứu bài luận')
 
     col1, col2 = st.columns([1, 2])
@@ -501,16 +861,22 @@ elif page == 'browse':
                     st.markdown(
                         f"**Câu {r['position']}** — `{r['error_type']}` "
                         f"(confidence={r['confidence']:.2f})")
-                    st.markdown(highlight_diff(r['content'], r['corrected_text']),
-                                unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div class="diff-box">{highlight_diff(r["content"], r["corrected_text"])}</div>',
+                        unsafe_allow_html=True,
+                    )
                 else:
-                    st.markdown(f"**Câu {r['position']}** ✓ {r['content']}")
+                    st.markdown(
+                        f'<div class="sentence-ok"><b>Câu {r["position"]}</b> ✓ {r["content"]}</div>',
+                        unsafe_allow_html=True,
+                    )
 
 
 # ============================================================
 # PAGE: CHECK SENTENCE — có upload file
 # ============================================================
 elif page == 'check':
+    st.markdown('<div class="section-pill">Công cụ</div>', unsafe_allow_html=True)
     st.title('🔍 Kiểm tra câu trực tiếp')
 
     @st.cache_resource
@@ -605,9 +971,15 @@ elif page == 'check':
             for i, (src, tgt) in enumerate(predictions, 1):
                 if src.strip().lower() != tgt.strip().lower():
                     st.markdown(f'**Câu {i}** — có lỗi:')
-                    st.markdown(highlight_diff(src, tgt), unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div class="diff-box">{highlight_diff(src, tgt)}</div>',
+                        unsafe_allow_html=True,
+                    )
                 else:
-                    st.markdown(f'**Câu {i}** ✓ Không có lỗi: {src}')
+                    st.markdown(
+                        f'<div class="sentence-ok"><b>Câu {i}</b> ✓ Không có lỗi: {src}</div>',
+                        unsafe_allow_html=True,
+                    )
         except Exception as e:
             st.error(f'Lỗi: {e}')
 
@@ -616,6 +988,7 @@ elif page == 'check':
 # PAGE: STATISTICS — 10 sections
 # ============================================================
 elif page == 'stats':
+    st.markdown('<div class="section-pill">Báo cáo</div>', unsafe_allow_html=True)
     st.title('📈 Thống kê chi tiết (cho báo cáo)')
 
     country_sql = country_case_sql('a.name')
@@ -638,7 +1011,7 @@ elif page == 'stats':
     if not df.empty and HAS_PLOTLY:
         fig = px.pie(df, values='n_pairs', names='phuong_phap', hole=0.3,
                      color_discrete_sequence=px.colors.qualitative.Vivid)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(_beautify_fig(fig), use_container_width=True)
         st.dataframe(df, hide_index=True, use_container_width=True)
 
     st.divider()
@@ -657,7 +1030,7 @@ elif page == 'stats':
                      color_discrete_sequence=px.colors.qualitative.Bold,
                      text='n_pairs')
         fig.update_traces(textposition='outside')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(_beautify_fig(fig), use_container_width=True)
     st.dataframe(df, hide_index=True, use_container_width=True)
 
     st.divider()
@@ -680,7 +1053,7 @@ elif page == 'stats':
                                 values='n', aggfunc='sum', fill_value=0)
         if HAS_PLOTLY:
             fig = px.imshow(pivot, color_continuous_scale='YlOrRd', text_auto=True)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(_beautify_fig(fig), use_container_width=True)
         st.dataframe(pivot, use_container_width=True)
 
     st.divider()
@@ -702,9 +1075,9 @@ elif page == 'stats':
     df = query(f'SELECT confidence, label FROM {SCHEMA}.predictions LIMIT 50000')
     if not df.empty and HAS_PLOTLY:
         fig = px.histogram(df, x='confidence', color='label', nbins=40,
-                            color_discrete_sequence=['#4ECDC4', '#FF6B6B'],
+                            color_discrete_sequence=['#10B981', '#EC4899'],
                             barmode='overlay', opacity=0.7)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(_beautify_fig(fig), use_container_width=True)
 
     st.divider()
 
@@ -725,8 +1098,8 @@ elif page == 'stats':
     if not df.empty and HAS_PLOTLY:
         fig = px.bar(df, x='country', y=['errors', 'total_predictions'],
                      barmode='group',
-                     color_discrete_sequence=['#FF6B6B', '#4ECDC4'])
-        st.plotly_chart(fig, use_container_width=True)
+                     color_discrete_sequence=['#EC4899', '#6366F1'])
+        st.plotly_chart(_beautify_fig(fig), use_container_width=True)
     st.dataframe(df, hide_index=True, use_container_width=True)
 
     st.divider()
@@ -739,8 +1112,8 @@ elif page == 'stats':
     ''')
     if not df.empty and HAS_PLOTLY:
         fig = px.histogram(df, x='length', nbins=50,
-                            color_discrete_sequence=['#9B59B6'])
-        st.plotly_chart(fig, use_container_width=True)
+                            color_discrete_sequence=['#8B5CF6'])
+        st.plotly_chart(_beautify_fig(fig), use_container_width=True)
 
     st.divider()
 
@@ -756,7 +1129,7 @@ elif page == 'stats':
     if not df.empty and HAS_PLOTLY:
         fig = px.sunburst(df, path=['category', 'name'], values='n',
                            color='severity', color_continuous_scale='RdYlGn_r')
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(_beautify_fig(fig), use_container_width=True)
     st.dataframe(df, hide_index=True, use_container_width=True)
 
     st.divider()
@@ -794,7 +1167,7 @@ elif page == 'stats':
         with col1:
             fig = px.pie(df, values='total_records', names='license', hole=0.4,
                          color_discrete_sequence=px.colors.qualitative.Set3)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(_beautify_fig(fig), use_container_width=True)
         with col2:
             st.dataframe(df, hide_index=True, use_container_width=True)
 
@@ -803,6 +1176,7 @@ elif page == 'stats':
 # PAGE: SQL CONSOLE — 12 query mẫu
 # ============================================================
 elif page == 'sql':
+    st.markdown('<div class="section-pill">Developer</div>', unsafe_allow_html=True)
     st.title('⚙️ SQL Console')
     st.markdown('Chạy query SELECT trực tiếp lên DB.')
 
@@ -890,13 +1264,13 @@ GROUP BY cs.name ORDER BY n_pairs DESC;"""
                                   color=y_col, color_continuous_scale='Blues')
             elif chart_type == 'Line':
                 fig = px.line(df, x=x_col, y=y_col, markers=True,
-                              color_discrete_sequence=['#FF6B6B'])
+                              color_discrete_sequence=['#6366F1'])
             elif chart_type == 'Scatter':
                 fig = px.scatter(df, x=x_col, y=y_col,
-                                 color_discrete_sequence=['#4ECDC4'], size_max=15)
+                                 color_discrete_sequence=['#8B5CF6'], size_max=15)
             else:
                 return
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(_beautify_fig(fig), use_container_width=True)
         except Exception as e:
             st.warning(f'Không vẽ được biểu đồ: {e}')
 
