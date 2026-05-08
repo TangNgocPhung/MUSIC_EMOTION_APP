@@ -1399,9 +1399,40 @@ Với mỗi cặp bài (i, j):
 # =============================================================================
 with tab3:
     st.markdown("### 🔍 Khám phá Mel-Spectrogram")
-    st.caption("Xem đặc trưng âm thanh mà mô hình dùng để dự đoán cảm xúc.")
+    st.caption("Xem đặc trưng âm thanh mà mô hình AI dùng để dự đoán cảm xúc.")
 
-    mel_file = st.file_uploader("Tải lên file để xem mel-spectrogram",
+    # === GIẢI THÍCH MỤC ĐÍCH CỦA TAB NÀY ===
+    with st.expander("❓ **Tab này dùng để làm gì?** (Đọc trước nếu bạn mới sử dụng)", expanded=True):
+        st.markdown("""
+        ### 🎯 Mục đích
+
+        Tab này giúp bạn **"nhìn thấy"** âm thanh — vốn là thứ chỉ có thể nghe.
+        Bạn sẽ thấy được **AI thực sự xử lý gì** khi nghe bài nhạc của bạn.
+
+        ### 💡 4 chức năng chính
+
+        | # | Chức năng | Tác dụng |
+        |---|---|---|
+        | 1 | **Dạng sóng (Waveform)** | Xem biên độ âm thanh — chỗ nào to, chỗ nào nhỏ |
+        | 2 | **Mel-Spectrogram** | Xem "ảnh chụp" tần số âm thanh — đây là **input thực tế của AI** |
+        | 3 | **Thống kê đặc trưng** | Đo các chỉ số khoa học: nhịp độ, độ sáng, độ ồn... |
+        | 4 | **Hiểu cách AI nhìn nhạc** | Tham khảo trước khi dùng tab "Phân tích bài nhạc" |
+
+        ### 👥 Ai nên dùng tab này?
+
+        - 🎓 **Sinh viên/giảng viên**: Hiểu cơ chế hoạt động của model
+        - 🎵 **Nhạc sĩ/producer**: Phân tích đặc trưng âm thanh của bài
+        - 🔬 **Nhà nghiên cứu**: So sánh đặc trưng giữa các thể loại nhạc
+        - 👨‍💻 **Người tò mò**: Xem AI "nhìn" nhạc như thế nào
+
+        ### 📌 Khác biệt với Tab "Phân tích bài nhạc"?
+
+        - **Tab Phân tích**: AI **dự đoán cảm xúc** (Vui/Buồn/Sôi động/Yên tĩnh)
+        - **Tab này**: Hiển thị **đặc trưng kỹ thuật** mà AI dùng để đưa ra dự đoán đó
+        - 💡 Có thể coi đây là **"phía sau hậu trường"** của AI
+        """)
+
+    mel_file = st.file_uploader("📤 Tải lên file để khám phá",
                                   type=["mp3", "wav"], key="mel_upload")
 
     if mel_file is not None:
@@ -1418,7 +1449,11 @@ with tab3:
                 n_mels=N_MELS, fmin=FMIN, fmax=FMAX, power=2.0)
             mel_db = librosa.power_to_db(mel_full, ref=np.max)
 
-        st.markdown("#### 〰️ Dạng sóng (Waveform)")
+        # ===========================================================
+        # 1. DẠNG SÓNG (WAVEFORM)
+        # ===========================================================
+        st.markdown("#### 〰️ 1. Dạng sóng (Waveform)")
+        st.caption("Biên độ âm thanh theo thời gian — chỗ nào sóng cao = nhạc to/mạnh, sóng thấp = nhạc nhỏ/lặng")
         t_wave = np.arange(len(y)) / sr
         step = max(1, len(y) // 5000)
         fig_wave = go.Figure(go.Scatter(x=t_wave[::step], y=y[::step],
@@ -1429,7 +1464,28 @@ with tab3:
                                 margin=dict(t=20, b=40))
         st.plotly_chart(fig_wave, use_container_width=True)
 
-        st.markdown("#### 🌈 Mel-Spectrogram (thang Log)")
+        with st.expander("ℹ️ Hiểu về Dạng sóng (Waveform)"):
+            st.markdown("""
+            **Waveform là gì?**
+            - Là biểu đồ thể hiện **độ to/nhỏ** của âm thanh theo từng khoảnh khắc
+            - Trục NGANG = thời gian (giây)
+            - Trục DỌC = biên độ (sóng âm thanh)
+
+            **Cách đọc đơn giản:**
+            - 🔊 Sóng dày, cao → đoạn nhạc TO, MẠNH (chorus, drop)
+            - 🔉 Sóng mỏng, thấp → đoạn nhạc NHỎ, LẶNG (intro, outro)
+            - 🔇 Đường thẳng tại 0 → IM LẶNG hoàn toàn
+
+            **Hạn chế của Waveform:**
+            - Chỉ thấy ĐỘ TO, không thấy được TẦN SỐ (cao/trầm)
+            - → Cần Mel-Spectrogram (bên dưới) để xem chi tiết hơn
+            """)
+
+        # ===========================================================
+        # 2. MEL-SPECTROGRAM (THANG LOG)
+        # ===========================================================
+        st.markdown("#### 🌈 2. Mel-Spectrogram (thang Log)")
+        st.caption("\"Ảnh chụp\" của âm thanh — đây chính là input mà AI nhận để dự đoán cảm xúc")
         fig_mel = go.Figure(data=go.Heatmap(
             z=mel_db,
             x=np.linspace(0, duration, mel_db.shape[1]),
@@ -1442,7 +1498,64 @@ with tab3:
                                paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_mel, use_container_width=True)
 
-        st.markdown("#### 📊 Thống kê đặc trưng âm thanh")
+        with st.expander("ℹ️ **Mel-Spectrogram là gì?** (Quan trọng — đọc kỹ)"):
+            st.markdown("""
+            ### 📖 Định nghĩa đơn giản
+
+            Mel-Spectrogram là cách **biến âm thanh thành một bức tranh 2D** mà máy tính có thể "nhìn".
+
+            > 💡 Tưởng tượng: Bạn không thấy được giọng người, nhưng nếu chuyển giọng nói thành sóng âm
+            > rồi vẽ ra → bạn có thể "đọc" giọng người qua hình ảnh. Đó chính là Mel-Spectrogram.
+
+            ### 🎨 Cách đọc
+
+            - **Trục NGANG** = Thời gian (giây) — giống như video tua từ trái sang phải
+            - **Trục DỌC** = Tần số (Hz) — thấp ở dưới (bass, trống), cao ở trên (chũm, hi-hat)
+            - **Màu sắc** = Cường độ tại tần số đó
+              - 🟡 **Vàng/cam (sáng)** = Tần số đó MẠNH (rõ, to)
+              - 🟣 **Tím/đen (tối)** = Tần số đó YẾU (im, không có)
+
+            ### 🎵 Áp dụng cho âm nhạc
+
+            | Vùng tần số | Loại âm thanh điển hình |
+            |---|---|
+            | **0-200 Hz** (dưới cùng) | Trống bass, kick drum |
+            | **200-2000 Hz** (giữa) | Giọng hát, guitar, piano |
+            | **2000-5000 Hz** (trên giữa) | Snare, vocals chi tiết |
+            | **5000-11000 Hz** (trên cùng) | Hi-hat, cymbal, tiếng s/sh |
+
+            ### 🎯 Vì sao dùng "thang Log" và "thang Mel"?
+
+            - **Log scale** (decibel - dB): Tai người không cảm nhận to/nhỏ tuyến tính.
+              Tai chuyển 10x to → ta cảm 2x → cần thang log để đúng cách tai nghe.
+            - **Mel scale**: Tai người cảm nhận tần số không tuyến tính.
+              Khoảng 100Hz → 200Hz nghe khác hẳn, nhưng 7000Hz → 7100Hz gần như giống.
+              Thang Mel mô phỏng cách tai người cảm nhận.
+
+            ### 🤖 Vai trò của Mel-Spectrogram trong AI
+
+            Đề tài này dùng **CNN + BiLSTM + Attention** xử lý Mel-Spectrogram như một bức ảnh:
+            1. **CNN** quét bức ảnh, tìm các "pattern" (ví dụ: vạch sáng = nốt nhạc)
+            2. **BiLSTM** ghép các pattern theo thời gian thành "câu chuyện cảm xúc"
+            3. **Attention** chọn đoạn nào quan trọng nhất để dự đoán
+
+            → Mel-Spectrogram là **mắt** của AI, không có nó AI không thể "nhìn" nhạc!
+
+            ### 💡 Mẹo "đọc" bài nhạc qua Mel-Spectrogram
+
+            - **Vạch ngang sáng dài** → có nốt giữ lâu (string, pad synth)
+            - **Vạch dọc sáng** → có cú đánh nhanh (drum, percussion)
+            - **Cả ảnh sáng đều** → bài đầy đủ, dày dặn (full mix)
+            - **Ảnh tối, thưa** → bài đơn giản, ít nhạc cụ (acoustic, piano solo)
+            - **Vùng dưới (bass) sáng** → bài có tempo mạnh, drum bass
+            - **Vùng trên (treble) sáng** → bài có nhiều chi tiết âm cao
+            """)
+
+        # ===========================================================
+        # 3. THỐNG KÊ ĐẶC TRƯNG ÂM THANH
+        # ===========================================================
+        st.markdown("#### 📊 3. Thống kê đặc trưng âm thanh")
+        st.caption("4 chỉ số khoa học mô tả đặc tính của bài nhạc")
         spec_centroid = librosa.feature.spectral_centroid(y=y, sr=SR)[0].mean()
         zero_crossing = librosa.feature.zero_crossing_rate(y)[0].mean()
         rms_energy = librosa.feature.rms(y=y)[0].mean()
@@ -1472,6 +1585,136 @@ with tab3:
                 <div class="metric-label">Năng lượng RMS</div>
                 <div class="metric-value">{rms_energy:.3f}</div>
             </div>""", unsafe_allow_html=True)
+
+        # === GIẢI THÍCH 4 CHỈ SỐ + PHÂN TÍCH BÀI HIỆN TẠI ===
+        with st.expander("ℹ️ **Hiểu 4 chỉ số này** (cho người không chuyên)", expanded=False):
+            # Phân loại tempo
+            if tempo_val < 60:        tempo_desc = "**RẤT CHẬM** (Largo) — Như nhạc thiền, ballad chậm"
+            elif tempo_val < 80:      tempo_desc = "**CHẬM** (Adagio) — Như slow ballad, lo-fi"
+            elif tempo_val < 100:     tempo_desc = "**VỪA** (Andante) — Như pop ballad"
+            elif tempo_val < 120:     tempo_desc = "**TRUNG BÌNH** (Moderato) — Như pop trung bình"
+            elif tempo_val < 140:     tempo_desc = "**NHANH** (Allegro) — Như pop sôi động, rock"
+            elif tempo_val < 160:     tempo_desc = "**KHÁ NHANH** (Vivace) — Như EDM, dance"
+            else:                      tempo_desc = "**RẤT NHANH** (Presto) — Như drum & bass, hardcore"
+
+            # Phân loại spectral centroid
+            if spec_centroid < 1500:   sc_desc = "**TRẦM** — Bài nhiều bass, nốt thấp (jazz, blues, hip-hop)"
+            elif spec_centroid < 2500: sc_desc = "**CÂN BẰNG** — Pop bình thường, có cả bass và treble"
+            elif spec_centroid < 4000: sc_desc = "**SÁNG** — Có nhiều âm cao (synth, treble rõ)"
+            else:                       sc_desc = "**RẤT SÁNG** — Tập trung âm cao (cymbal, hi-hat, vocal cao)"
+
+            # Phân loại ZCR
+            if zero_crossing < 0.05:   zcr_desc = "**MƯỢT, TONAL** — Nhạc cụ giữ note (string, vocal)"
+            elif zero_crossing < 0.1:  zcr_desc = "**TRUNG BÌNH** — Mix vocal + nhạc cụ"
+            else:                       zcr_desc = "**NHIỄU CAO** — Có percussion, hi-hat, hoặc tiếng s/sh"
+
+            # Phân loại RMS
+            if rms_energy < 0.05:     rms_desc = "**RẤT NHỎ** — Đoạn yên tĩnh, intro nhẹ"
+            elif rms_energy < 0.1:    rms_desc = "**NHỎ** — Acoustic, ballad chậm"
+            elif rms_energy < 0.2:    rms_desc = "**TRUNG BÌNH** — Pop bình thường"
+            else:                      rms_desc = "**LỚN** — Rock, EDM, có drop mạnh"
+
+            st.markdown(f"""
+            ### 🎵 1. Tempo (Nhịp độ): **{tempo_val:.0f} BPM**
+
+            **Định nghĩa:** Số nhịp trên phút (Beats Per Minute) — đo "tốc độ" bài nhạc.
+
+            **Bài của bạn:** {tempo_desc}
+
+            **Tham chiếu:**
+            - 60-70 BPM: Nhạc ru, nhạc thiền
+            - 90-110 BPM: Pop ballad, R&B
+            - 120-130 BPM: Pop, House music
+            - 130-150 BPM: Rock, Dance
+            - 150+ BPM: EDM, Drum & Bass
+
+            **Liên quan đến cảm xúc:** Tempo cao thường = Arousal cao (sôi động).
+
+            ---
+
+            ### 🎵 2. Trọng tâm phổ (Spectral Centroid): **{spec_centroid:.0f} Hz**
+
+            **Định nghĩa:** "Trọng tâm" của âm thanh trên trục tần số — bài nhạc thiên về âm trầm hay âm cao.
+
+            **Bài của bạn:** {sc_desc}
+
+            **Tham chiếu:**
+            - **< 1500 Hz** = Âm TRẦM (bass, nam giọng trầm)
+            - **1500-3000 Hz** = Cân bằng (pop trung bình)
+            - **> 3000 Hz** = Âm CAO (treble, nữ giọng cao)
+
+            **Liên quan đến cảm xúc:** Bài "sáng" thường vui hơn (Valence cao), "trầm" thường buồn hơn.
+
+            ---
+
+            ### 🎵 3. Tỷ lệ qua 0 (Zero Crossing Rate): **{zero_crossing:.3f}**
+
+            **Định nghĩa:** Tốc độ sóng âm cắt qua đường 0 — đo "độ nhiễu" hay tonal của âm thanh.
+
+            **Bài của bạn:** {zcr_desc}
+
+            **Tham chiếu:**
+            - **< 0.05** = MƯỢT (giọng hát giữ note, violin, piano)
+            - **0.05-0.1** = TRUNG BÌNH (mix có nhạc cụ + vocal)
+            - **> 0.1** = NHIỄU (drum, percussion, tiếng s/sh trong giọng hát)
+
+            **Liên quan đến cảm xúc:** ZCR cao thường liên quan đến Arousal cao (có drum mạnh).
+
+            ---
+
+            ### 🎵 4. Năng lượng RMS (RMS Energy): **{rms_energy:.3f}**
+
+            **Định nghĩa:** Mức năng lượng trung bình (cảm nhận như "to" của bài) — RMS = Root Mean Square.
+
+            **Bài của bạn:** {rms_desc}
+
+            **Tham chiếu:**
+            - **< 0.05** = Rất nhỏ (ambient, intro yên tĩnh)
+            - **0.05-0.1** = Nhỏ (acoustic, ballad)
+            - **0.1-0.2** = Trung bình (pop chuẩn)
+            - **> 0.2** = Lớn (rock, EDM, có "wall of sound")
+
+            **Liên quan đến cảm xúc:** RMS cao = nhiều năng lượng = Arousal cao.
+            """)
+
+        # === KẾT LUẬN TỔNG HỢP CHO BÀI ===
+        with st.expander("🎯 **Phân tích tổng hợp bài này** (kết hợp 4 chỉ số)", expanded=True):
+            # Tổng hợp dự đoán cảm xúc dựa trên 4 chỉ số
+            arousal_score = 0
+            arousal_score += 1 if tempo_val > 110 else (-1 if tempo_val < 80 else 0)
+            arousal_score += 1 if rms_energy > 0.15 else (-1 if rms_energy < 0.07 else 0)
+            arousal_score += 1 if zero_crossing > 0.08 else (-1 if zero_crossing < 0.04 else 0)
+
+            valence_score = 0
+            valence_score += 1 if spec_centroid > 2500 else (-1 if spec_centroid < 1500 else 0)
+
+            if arousal_score >= 2:    arousal_label = "CAO (sôi động)"
+            elif arousal_score <= -2: arousal_label = "THẤP (yên tĩnh)"
+            else:                      arousal_label = "TRUNG BÌNH"
+
+            if valence_score >= 1:    valence_label = "TÍCH CỰC (vui, sáng)"
+            elif valence_score <= -1: valence_label = "TIÊU CỰC (buồn, trầm)"
+            else:                      valence_label = "TRUNG TÍNH"
+
+            st.markdown(f"""
+            #### 📋 Tóm tắt đặc trưng kỹ thuật
+
+            Dựa trên **4 chỉ số khoa học**, bài nhạc của bạn có đặc trưng:
+
+            - 🎵 **Nhịp độ**: {tempo_val:.0f} BPM
+            - 🌈 **Tính chất phổ**: {sc_desc}
+            - 🎚️ **Mức độ ồn**: {rms_desc}
+            - 🎼 **Độ mượt sóng**: {zcr_desc}
+
+            #### 🔮 Dự đoán cảm xúc sơ bộ (chỉ dựa trên 4 chỉ số trên)
+
+            - **Năng lượng (Arousal)**: {arousal_label}
+            - **Tính tích cực (Valence)**: {valence_label}
+
+            > ⚠️ **Lưu ý**: Đây chỉ là phân tích sơ bộ dựa trên các chỉ số "thủ công".
+            > Để có kết quả chính xác hơn, hãy dùng tab **"🎼 Phân tích bài nhạc"** —
+            > nơi mô hình AI deep learning sẽ phân tích chi tiết theo từng giây.
+            """)
 
 
 # =============================================================================
