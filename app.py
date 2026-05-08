@@ -1300,7 +1300,7 @@ with tab5:
 # =============================================================================
 st.markdown("""
 <div class="footer">
-    🎵 Phân tích Cảm xúc Âm nhạc | Master Thesis Demo |
+    🎵 Phân tích Cảm xúc Âm nhạc |Advanced Machine Learning|  Academic Supervisor: Dr. Ngo Quoc Viet|
     Built with Streamlit, PyTorch & ❤️
 </div>
 """, unsafe_allow_html=True)
