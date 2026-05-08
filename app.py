@@ -691,7 +691,7 @@ with tab1:
         st.markdown(f'<div class="insight-box">💡 {insight_text}</div>', unsafe_allow_html=True)
 
         # === GIẢI THÍCH CHI TIẾT CÁCH MODEL QUYẾT ĐỊNH CẢM XÚC ===
-        with st.expander("🎓 **Giải thích chi tiết: Vì sao bài này được phân loại như vậy?**"):
+        with st.expander("🎓 **Giải thích chi tiết: Vì sao bài này được phân loại như vậy?**", expanded=True):
             st.markdown(explain_emotion_decision(r['avg_v'], r['avg_a'], r['dominant_mood']))
 
             st.markdown("---")
@@ -753,7 +753,7 @@ with tab1:
         st.plotly_chart(fig_timeline, use_container_width=True)
 
         # === GIẢI THÍCH CÁCH ĐỌC BIỂU ĐỒ TIMELINE ===
-        with st.expander("📖 **Cách đọc biểu đồ này**"):
+        with st.expander("📖 **Cách đọc biểu đồ này**", expanded=True):
             # Phân tích xu hướng thực tế của bài nhạc
             v_start = float(np.mean(v_arr[:5])); v_end = float(np.mean(v_arr[-5:]))
             a_start = float(np.mean(a_arr[:5])); a_end = float(np.mean(a_arr[-5:]))
@@ -818,7 +818,7 @@ with tab1:
             st.plotly_chart(fig_mood, use_container_width=True)
 
             # === GIẢI THÍCH BẢN ĐỒ MOOD ===
-            with st.expander("ℹ️ Giải thích biểu đồ này"):
+            with st.expander("ℹ️ Giải thích biểu đồ này", expanded=True):
                 st.markdown("""
                 **Cách đọc:**
                 - 🟠 **Cam** = Vui vẻ / Hưng phấn (V+, A+)
@@ -865,7 +865,7 @@ with tab1:
             st.plotly_chart(fig_va, use_container_width=True)
 
             # === GIẢI THÍCH QUỸ ĐẠO V-A ===
-            with st.expander("ℹ️ Giải thích quỹ đạo"):
+            with st.expander("ℹ️ Giải thích quỹ đạo", expanded=True):
                 st.markdown("""
                 **Cách đọc:**
                 - **Trục NGANG** = Valence (càng phải = càng vui)
@@ -905,7 +905,7 @@ with tab1:
             st.plotly_chart(fig_pie, use_container_width=True)
 
             # === GIẢI THÍCH PIE CHART ===
-            with st.expander("ℹ️ Cách đọc biểu đồ tròn"):
+            with st.expander("ℹ️ Cách đọc biểu đồ tròn", expanded=True):
                 # Tự động tìm cảm xúc chiếm nhiều nhất
                 most_mood = max(mood_counts, key=mood_counts.get)
                 most_pct = 100 * mood_counts[most_mood] / sum(mood_counts.values())
@@ -1100,7 +1100,7 @@ with tab2:
             st.plotly_chart(fig_cmp, use_container_width=True)
 
             # === GIẢI THÍCH BIỂU ĐỒ ===
-            with st.expander("📖 **Cách đọc biểu đồ này**"):
+            with st.expander("📖 **Cách đọc biểu đồ này**", expanded=True):
                 st.markdown(f"""
                 Biểu đồ chia thành **2 phần** — phần TRÊN là Valence, phần DƯỚI là Arousal.
 
@@ -1182,7 +1182,7 @@ with tab2:
             st.plotly_chart(fig_sim, use_container_width=True)
 
             # === GIẢI THÍCH ĐỘ TƯƠNG ĐỒNG ===
-            with st.expander("🧮 **Vì sao có độ tương đồng X%?** (Giải thích cách tính)"):
+            with st.expander("🧮 **Vì sao có độ tương đồng X%?** (Giải thích cách tính)", expanded=True):
                 if n == 2:
                     # Trường hợp đặc biệt 2 bài
                     cv = corr_v_matrix[0, 1]
@@ -1464,7 +1464,7 @@ with tab3:
                                 margin=dict(t=20, b=40))
         st.plotly_chart(fig_wave, use_container_width=True)
 
-        with st.expander("ℹ️ Hiểu về Dạng sóng (Waveform)"):
+        with st.expander("ℹ️ Hiểu về Dạng sóng (Waveform)", expanded=True):
             st.markdown("""
             **Waveform là gì?**
             - Là biểu đồ thể hiện **độ to/nhỏ** của âm thanh theo từng khoảnh khắc
@@ -1498,7 +1498,7 @@ with tab3:
                                paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_mel, use_container_width=True)
 
-        with st.expander("ℹ️ **Mel-Spectrogram là gì?** (Quan trọng — đọc kỹ)"):
+        with st.expander("ℹ️ **Mel-Spectrogram là gì?** (Quan trọng — đọc kỹ)", expanded=True):
             st.markdown("""
             ### 📖 Định nghĩa đơn giản
 
@@ -1587,7 +1587,7 @@ with tab3:
             </div>""", unsafe_allow_html=True)
 
         # === GIẢI THÍCH 4 CHỈ SỐ + PHÂN TÍCH BÀI HIỆN TẠI ===
-        with st.expander("ℹ️ **Hiểu 4 chỉ số này** (cho người không chuyên)", expanded=False):
+        with st.expander("ℹ️ **Hiểu 4 chỉ số này** (cho người không chuyên)", expanded=True):
             # Phân loại tempo
             if tempo_val < 60:        tempo_desc = "**RẤT CHẬM** (Largo) — Như nhạc thiền, ballad chậm"
             elif tempo_val < 80:      tempo_desc = "**CHẬM** (Adagio) — Như slow ballad, lo-fi"
