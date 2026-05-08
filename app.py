@@ -1,9 +1,9 @@
 """
 ================================================================================
-HE THONG PHAN TICH DIEN BIEN CAM XUC TRONG AM NHAC
-Streamlit Demo App — Phien ban Master Thesis
+HỆ THỐNG PHÂN TÍCH DIỄN BIẾN CẢM XÚC TRONG ÂM NHẠC
+Streamlit Demo App — Phiên bản Master Thesis
 ================================================================================
-Tac gia : Phung
+Tác giả : Phụng
 Model   : CNN + BiLSTM + Multi-head Attention (Combined Loss + Class Weighting)
 Dataset : DEAM + PMEmo (cross-cultural)
 ================================================================================
@@ -31,7 +31,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 
 # =============================================================================
-# 1. CONFIGURATION
+# 1. CẤU HÌNH
 # =============================================================================
 SR                 = 22050
 CLIP_START_SEC     = 15.0
@@ -44,12 +44,18 @@ FMIN, FMAX = 20, SR // 2
 CNN_OUT_DIM, LSTM_HIDDEN, LSTM_LAYERS, LSTM_BIDIR, DROPOUT = 256, 128, 2, True, 0.3
 LABEL_MIN, LABEL_MAX, LABEL_MEAN = -1.0, 1.0, 0.0
 
+# === HẰNG SỐ DEFAULT (thay cho slider trong UI) ===
+DEFAULT_SMOOTHING   = 5      # Cửa sổ moving average tối ưu (qua thực nghiệm)
+DEFAULT_MIN_SEG_LEN = 3.0    # Đoạn ngắn hơn 3 giây sẽ được gộp
+
 CKPT_DIR = Path(".")
+
+# === 4 MODELS CỦA ĐỀ TÀI ===
 AVAILABLE_CHECKPOINTS = {
-    "Attention + Balanced (BEST)": "best_attention_balanced.pt",
-    "Attention (CCC Loss)":         "best_attention.pt",
-    "CCC Loss":                      "best_ccc.pt",
-    "Baseline (SmoothL1)":           "best.pt",
+    "⭐ Mô hình đề xuất chính (Attention + Combined Loss + Balanced)": "best_attention_balanced.pt",
+    "Mô hình Attention thuần (CCC Loss)":                              "best_attention.pt",
+    "Mô hình Baseline (CNN + BiLSTM)":                                  "best.pt",
+    "Mô hình Transfer Learning (DEAM → PMEmo)":                         "best_pmemo_ft_head.pt",
 }
 
 QUADRANTS = {(+1,+1):"happy/excited", (-1,+1):"tense/angry",
@@ -58,14 +64,14 @@ MOOD_COLORS = {"happy/excited":"#f39c12", "tense/angry":"#e74c3c",
                 "sad":"#3498db",          "calm/relaxed":"#2ecc71"}
 MOOD_EMOJIS = {"happy/excited":"😊", "tense/angry":"😠",
                 "sad":"😢",          "calm/relaxed":"😌"}
-MOOD_VI = {"happy/excited":"Vui ve / Hung phan",
-            "tense/angry":  "Cang thang / Tuc gian",
-            "sad":           "Buon ba",
-            "calm/relaxed":  "Thu thai / Binh yen"}
+MOOD_VI = {"happy/excited":"Vui vẻ / Hưng phấn",
+            "tense/angry":  "Căng thẳng / Tức giận",
+            "sad":           "Buồn bã",
+            "calm/relaxed":  "Thư thái / Bình yên"}
 
 
 # =============================================================================
-# 2. MODEL ARCHITECTURE
+# 2. KIẾN TRÚC MODEL
 # =============================================================================
 class CNNEncoder(nn.Module):
     def __init__(self, out_dim=256):
@@ -81,7 +87,7 @@ class CNNEncoder(nn.Module):
 
 
 class CNNLSTMEmotion(nn.Module):
-    """Baseline: CNN + BiLSTM (cho best.pt, best_ccc.pt)"""
+    """Baseline: CNN + BiLSTM (cho best.pt, best_pmemo_ft_head.pt)"""
     def __init__(self):
         super().__init__()
         self.cnn = CNNEncoder(CNN_OUT_DIM)
@@ -121,7 +127,7 @@ class CNNLSTMAttentionEmotion(nn.Module):
 
 
 # =============================================================================
-# 3. AUDIO + INFERENCE FUNCTIONS
+# 3. HÀM XỬ LÝ AUDIO + DỰ ĐOÁN
 # =============================================================================
 def audio_to_mel_sequence(y):
     s, e = int(CLIP_START_SEC*SR), int(CLIP_END_SEC*SR)
@@ -181,7 +187,7 @@ def load_model(ckpt_name):
 
 
 @torch.no_grad()
-def predict(audio_path, model, dev, smoothing=5):
+def predict(audio_path, model, dev, smoothing=DEFAULT_SMOOTHING):
     y, _ = librosa.load(audio_path, sr=SR, mono=True)
     total = len(y) / SR
 
@@ -213,10 +219,10 @@ def predict(audio_path, model, dev, smoothing=5):
 
 
 # =============================================================================
-# 4. STREAMLIT UI — CUSTOM CSS + PAGE CONFIG
+# 4. STREAMLIT UI — CSS + CẤU HÌNH TRANG
 # =============================================================================
 st.set_page_config(
-    page_title="Music Emotion Analyzer",
+    page_title="Phân tích Cảm xúc Âm nhạc",
     page_icon="🎵",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -224,12 +230,12 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* ============ LIGHT THEME — Pastel gradient ============ */
+    /* ============ THEME SÁNG — Pastel gradient ============ */
     .stApp {
         background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 50%, #f5e6f7 100%);
     }
 
-    /* Header — gradient màu vẫn giữ nổi bật */
+    /* Header */
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
         padding: 2.5rem;
@@ -252,7 +258,7 @@ st.markdown("""
         font-size: 1.1rem;
     }
 
-    /* Metric cards — trắng với shadow nhẹ */
+    /* Metric cards */
     .metric-card {
         background: white;
         border-radius: 16px;
@@ -309,7 +315,7 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(118, 75, 162, 0.3);
     }
 
-    /* Sidebar — light với accent màu */
+    /* Sidebar */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #ffffff 0%, #f5f0ff 100%);
         border-right: 1px solid rgba(118, 75, 162, 0.1);
@@ -350,7 +356,7 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(67, 233, 123, 0.45);
     }
 
-    /* Insight box — trắng với accent gradient */
+    /* Insight box */
     .insight-box {
         background: white;
         border-left: 5px solid;
@@ -375,11 +381,6 @@ st.markdown("""
     /* Headers main area */
     h1, h2, h3, h4, h5 {
         color: #2c3e50 !important;
-    }
-
-    /* Slider */
-    .stSlider [data-baseweb="slider"] [role="slider"] {
-        background: linear-gradient(135deg, #667eea, #764ba2) !important;
     }
 
     /* Selectbox */
@@ -432,7 +433,7 @@ st.markdown("""
 
 
 # =============================================================================
-# 5. SESSION STATE INIT
+# 5. KHỞI TẠO SESSION STATE
 # =============================================================================
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -445,58 +446,78 @@ if "current_result" not in st.session_state:
 # =============================================================================
 st.markdown("""
 <div class="main-header">
-    <h1>🎵 Music Emotion Analyzer</h1>
-    <p>Phan tich dien bien cam xuc theo thoi gian | CNN + BiLSTM + Attention | DEAM + PMEmo</p>
+    <h1>🎵 Phân tích Cảm xúc Âm nhạc</h1>
+    <p>Phân tích diễn biến cảm xúc theo thời gian | CNN + BiLSTM + Attention | DEAM + PMEmo</p>
 </div>
 """, unsafe_allow_html=True)
 
 
 # =============================================================================
-# 7. SIDEBAR — CONTROLS
+# 7. SIDEBAR — CHỌN MODEL
 # =============================================================================
 with st.sidebar:
-    st.markdown("### ⚙️ Cau hinh phan tich")
+    st.markdown("### 🤖 Chọn mô hình")
 
     available = {k: v for k, v in AVAILABLE_CHECKPOINTS.items()
                  if (CKPT_DIR / v).exists()}
     if not available:
-        st.error("Khong tim thay checkpoint nao!")
+        st.error("⚠️ Không tìm thấy checkpoint nào trong thư mục!")
+        st.info("Cần các file: best_attention_balanced.pt, best_attention.pt, best.pt, best_pmemo_ft_head.pt")
         st.stop()
 
     selected_model = st.selectbox(
-        "🤖 Chon model",
+        "Mô hình sử dụng để phân tích",
         list(available.keys()),
-        help="Model tot nhat: 'Attention + Balanced'"
+        help="⭐ là mô hình đề xuất chính (tốt nhất)"
     )
     ckpt_file = available[selected_model]
 
     st.markdown("---")
-    st.markdown("### 🎛️ Tham so")
+    st.markdown("### 📊 Thông tin mô hình")
 
-    smoothing = st.slider("Do muot du doan", 1, 15, 5,
-                          help="Cua so moving average — tang de giam nhieu")
-    min_seg_len = st.slider("Do dai toi thieu doan (s)", 1.0, 10.0, 3.0, 0.5,
-                            help="Doan ngan hon se duoc gop vao doan truoc")
-
-    st.markdown("---")
-    st.markdown("### 📊 Thong tin model")
-
+    # Mô tả chi tiết cho 4 models
     model_info = {
-        "Attention + Balanced (BEST)": ("CNN + BiLSTM + Attention", "Combined Loss + Class Weighting"),
-        "Attention (CCC Loss)": ("CNN + BiLSTM + Attention", "CCC Loss"),
-        "CCC Loss": ("CNN + BiLSTM", "CCC Loss"),
-        "Baseline (SmoothL1)": ("CNN + BiLSTM", "SmoothL1 Loss"),
+        "⭐ Mô hình đề xuất chính (Attention + Combined Loss + Balanced)":
+            ("CNN + BiLSTM + Multi-head Attention",
+             "Combined Loss + Class Weighting",
+             "DEAM (1802 bài)",
+             "Mô hình cuối cùng, xử lý class imbalance"),
+        "Mô hình Attention thuần (CCC Loss)":
+            ("CNN + BiLSTM + Multi-head Attention",
+             "CCC Loss",
+             "DEAM (1802 bài)",
+             "Chứng minh đóng góp của Attention"),
+        "Mô hình Baseline (CNN + BiLSTM)":
+            ("CNN + BiLSTM",
+             "SmoothL1 Loss",
+             "DEAM (1802 bài)",
+             "Mô hình tham chiếu cơ bản"),
+        "Mô hình Transfer Learning (DEAM → PMEmo)":
+            ("CNN + BiLSTM (Freeze CNN)",
+             "SmoothL1 Loss",
+             "Pretrain DEAM + Fine-tune PMEmo",
+             "Cross-cultural generalization"),
     }
-    arch, loss = model_info.get(selected_model, ("?", "?"))
+    arch, loss, dataset, role = model_info.get(selected_model,
+                                                ("?", "?", "?", "?"))
     st.markdown(f"""
-    - **Kien truc**: `{arch}`
-    - **Loss function**: `{loss}`
-    - **Thong so**: ~1.7M params
-    - **Dataset**: DEAM + PMEmo
-    """)
+- **Kiến trúc**: `{arch}`
+- **Hàm mất mát**: `{loss}`
+- **Dữ liệu huấn luyện**: {dataset}
+- **Vai trò**: _{role}_
+""")
 
     st.markdown("---")
-    if st.button("🗑️ Xoa lich su"):
+    st.markdown("### 📋 4 mô hình của đề tài")
+    st.markdown("""
+1. ⭐ **Attention + Balanced** — Đề xuất chính
+2. **Attention thuần** — Ablation
+3. **Baseline** — Tham chiếu
+4. **Transfer Learning** — Cross-dataset
+""")
+
+    st.markdown("---")
+    if st.button("🗑️ Xóa lịch sử"):
         st.session_state.history = []
         st.session_state.current_result = None
         st.rerun()
@@ -514,38 +535,38 @@ with st.sidebar:
 # 8. MAIN TABS
 # =============================================================================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🎼 Phan tich bai nhac",
-    "⚖️ So sanh 2 bai",
-    "🔍 Mel-Spectrogram Explorer",
-    "📚 Lich su phan tich",
-    "ℹ️ Gioi thieu",
+    "🎼 Phân tích bài nhạc",
+    "⚖️ So sánh 2 bài",
+    "🔍 Mel-Spectrogram",
+    "📚 Lịch sử phân tích",
+    "ℹ️ Giới thiệu",
 ])
 
 
 # =============================================================================
-# TAB 1 — SINGLE SONG ANALYSIS
+# TAB 1 — PHÂN TÍCH 1 BÀI NHẠC
 # =============================================================================
 with tab1:
-    st.markdown("### 📤 Upload bai nhac")
+    st.markdown("### 📤 Tải lên bài nhạc")
 
     col_u1, col_u2 = st.columns([3, 1])
     with col_u1:
-        up = st.file_uploader("Chon file MP3 / WAV", type=["mp3", "wav"],
+        up = st.file_uploader("Chọn file MP3 / WAV", type=["mp3", "wav"],
                               key="single_upload", label_visibility="collapsed")
     with col_u2:
-        analyze_btn = st.button("🚀 Phan tich", use_container_width=True, type="primary")
+        analyze_btn = st.button("🚀 Phân tích", use_container_width=True, type="primary")
 
     if up is not None and analyze_btn:
         tmp = Path(tempfile.gettempdir()) / up.name
         tmp.write_bytes(up.read())
 
         try:
-            with st.spinner("🎵 Dang trich xuat dac trung..."):
+            with st.spinner("🎵 Đang trích xuất đặc trưng âm thanh..."):
                 model, dev = load_model(ckpt_file)
-                y, total, times, pr = predict(tmp, model, dev, smoothing)
+                y, total, times, pr = predict(tmp, model, dev, DEFAULT_SMOOTHING)
 
             moods = [quadrant(v, a) for v, a in pr]
-            segs = group_timeline(times, moods, min_seg_len)
+            segs = group_timeline(times, moods, DEFAULT_MIN_SEG_LEN)
             mv, ma = float(pr[:, 0].mean()), float(pr[:, 1].mean())
             dom_mood = quadrant(mv, ma)
 
@@ -567,36 +588,36 @@ with tab1:
             st.session_state.history.append(result)
 
         except Exception as e:
-            st.error(f"❌ Loi: {str(e)}")
-            with st.expander("Chi tiet loi"):
+            st.error(f"❌ Lỗi: {str(e)}")
+            with st.expander("Chi tiết lỗi"):
                 st.code(traceback.format_exc())
 
     if st.session_state.current_result:
         r = st.session_state.current_result
         st.audio(r["audio_path"])
 
-        st.markdown("### 📈 Tong quan")
+        st.markdown("### 📈 Tổng quan")
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             st.markdown(f"""<div class="metric-card">
-                <div class="metric-label">Thoi luong</div>
+                <div class="metric-label">Thời lượng</div>
                 <div class="metric-value">{r['duration']:.1f}s</div>
             </div>""", unsafe_allow_html=True)
         with c2:
             st.markdown(f"""<div class="metric-card">
-                <div class="metric-label">Valence trung binh</div>
+                <div class="metric-label">Valence trung bình</div>
                 <div class="metric-value">{r['avg_v']:+.2f}</div>
             </div>""", unsafe_allow_html=True)
         with c3:
             st.markdown(f"""<div class="metric-card">
-                <div class="metric-label">Arousal trung binh</div>
+                <div class="metric-label">Arousal trung bình</div>
                 <div class="metric-value">{r['avg_a']:+.2f}</div>
             </div>""", unsafe_allow_html=True)
         with c4:
             color = MOOD_COLORS[r['dominant_mood']]
             emoji = MOOD_EMOJIS[r['dominant_mood']]
             st.markdown(f"""<div class="metric-card">
-                <div class="metric-label">Cam xuc chu dao</div>
+                <div class="metric-label">Cảm xúc chủ đạo</div>
                 <div style="font-size:2.2rem; margin:0.3rem 0;">{emoji}</div>
                 <div style="color:{color}; font-weight:700; font-size:1.05rem;">
                     {MOOD_VI[r['dominant_mood']]}
@@ -607,17 +628,17 @@ with tab1:
         if len(unique_moods) > 1:
             mood_seq = " → ".join([MOOD_VI[s['mood']] for s in r['segments']])
             insight_text = (
-                f"<b>Bai nhac trai qua {len(r['segments'])} doan cam xuc:</b> {mood_seq}.<br>"
-                f"<b>Cam xuc trung binh</b>: {MOOD_VI[r['dominant_mood']]} (V={r['avg_v']:+.2f}, A={r['avg_a']:+.2f})."
+                f"<b>Bài nhạc trải qua {len(r['segments'])} đoạn cảm xúc:</b> {mood_seq}.<br>"
+                f"<b>Cảm xúc trung bình</b>: {MOOD_VI[r['dominant_mood']]} (V={r['avg_v']:+.2f}, A={r['avg_a']:+.2f})."
             )
         else:
             insight_text = (
-                f"<b>Cam xuc nhat quan xuyen suot</b>: {MOOD_VI[r['dominant_mood']]} "
+                f"<b>Cảm xúc nhất quán xuyên suốt bài nhạc</b>: {MOOD_VI[r['dominant_mood']]} "
                 f"(V={r['avg_v']:+.2f}, A={r['avg_a']:+.2f})."
             )
         st.markdown(f'<div class="insight-box">💡 {insight_text}</div>', unsafe_allow_html=True)
 
-        st.markdown("### 📉 Dien bien V-A theo thoi gian")
+        st.markdown("### 📉 Diễn biến V-A theo thời gian")
         times_arr = np.array(r['times'])
         v_arr = np.array(r['valence'])
         a_arr = np.array(r['arousal'])
@@ -633,8 +654,8 @@ with tab1:
         fig_timeline.update_layout(
             template="plotly_white",
             height=400,
-            xaxis_title="Thoi gian (giay)",
-            yaxis_title="V / A (-1 to 1)",
+            xaxis_title="Thời gian (giây)",
+            yaxis_title="V / A (-1 đến 1)",
             yaxis_range=[-1.1, 1.1],
             hovermode='x unified',
             paper_bgcolor='rgba(0,0,0,0)',
@@ -645,7 +666,7 @@ with tab1:
         col_a, col_b = st.columns([2, 1])
 
         with col_a:
-            st.markdown("#### 🎨 Ban do mood theo thoi gian")
+            st.markdown("#### 🎨 Bản đồ cảm xúc theo thời gian")
             fig_mood = go.Figure()
             for s in r['segments']:
                 color = MOOD_COLORS.get(s['mood'], "#95a5a6")
@@ -665,14 +686,14 @@ with tab1:
                 )
             fig_mood.update_layout(
                 template="plotly_white", height=200,
-                xaxis_title="Thoi gian (giay)", yaxis=dict(visible=False),
+                xaxis_title="Thời gian (giây)", yaxis=dict(visible=False),
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
                 margin=dict(t=20, b=40),
             )
             st.plotly_chart(fig_mood, use_container_width=True)
 
         with col_b:
-            st.markdown("#### 🎯 Quy dao V-A")
+            st.markdown("#### 🎯 Quỹ đạo V-A")
             fig_va = go.Figure()
             fig_va.add_shape(type="rect", x0=0, y0=0, x1=1, y1=1,
                              fillcolor="rgba(243,156,18,0.1)", line_width=0)
@@ -686,8 +707,8 @@ with tab1:
                 x=v_arr, y=a_arr, mode='lines+markers',
                 line=dict(color="#8e44ad", width=2),
                 marker=dict(size=5, color=times_arr, colorscale='Viridis',
-                            showscale=True, colorbar=dict(title="Time(s)")),
-                name="Quy dao",
+                            showscale=True, colorbar=dict(title="Giây")),
+                name="Quỹ đạo",
             ))
             for (vs, as_), name in QUADRANTS.items():
                 fig_va.add_annotation(x=vs*0.7, y=as_*0.85,
@@ -707,7 +728,7 @@ with tab1:
         col_c, col_d = st.columns([1, 1])
 
         with col_c:
-            st.markdown("#### 🥧 Phan bo mood")
+            st.markdown("#### 🥧 Phân bố cảm xúc")
             mood_counts = Counter(r['moods'])
             fig_pie = go.Figure(data=[go.Pie(
                 labels=[MOOD_VI[m] for m in mood_counts.keys()],
@@ -727,30 +748,30 @@ with tab1:
             st.plotly_chart(fig_pie, use_container_width=True)
 
         with col_d:
-            st.markdown("#### 📋 Bang doan cam xuc")
+            st.markdown("#### 📋 Bảng các đoạn cảm xúc")
             seg_df = pd.DataFrame([
                 {
                     "#": i+1,
-                    "Tu": f"{s['start']:.1f}s",
-                    "Den": f"{s['end']:.1f}s",
-                    "Thoi luong": f"{s['end']-s['start']:.1f}s",
-                    "Mood": f"{MOOD_EMOJIS[s['mood']]} {MOOD_VI[s['mood']]}",
+                    "Từ": f"{s['start']:.1f}s",
+                    "Đến": f"{s['end']:.1f}s",
+                    "Thời lượng": f"{s['end']-s['start']:.1f}s",
+                    "Cảm xúc": f"{MOOD_EMOJIS[s['mood']]} {MOOD_VI[s['mood']]}",
                 }
                 for i, s in enumerate(r['segments'])
             ])
             st.dataframe(seg_df, use_container_width=True, hide_index=True, height=350)
 
-        st.markdown("### 💾 Xuat ket qua")
+        st.markdown("### 💾 Xuất kết quả")
         ec1, ec2, ec3 = st.columns(3)
 
         with ec1:
             csv_data = pd.DataFrame({
-                "time_sec": r['times'],
-                "valence":  r['valence'],
-                "arousal":  r['arousal'],
-                "mood":     r['moods'],
+                "thoi_gian_giay": r['times'],
+                "valence":         r['valence'],
+                "arousal":         r['arousal'],
+                "cam_xuc":         r['moods'],
             }).to_csv(index=False)
-            st.download_button("📄 Tai CSV (chi tiet)", csv_data,
+            st.download_button("📄 Tải CSV (chi tiết)", csv_data,
                                 file_name=f"{r['filename']}_emotion.csv",
                                 mime="text/csv", use_container_width=True)
 
@@ -765,55 +786,55 @@ with tab1:
                 "dominant_mood": r['dominant_mood'],
                 "segments": r['segments'],
             }, indent=2, ensure_ascii=False)
-            st.download_button("📊 Tai JSON (tong hop)", json_data,
+            st.download_button("📊 Tải JSON (tổng hợp)", json_data,
                                 file_name=f"{r['filename']}_summary.json",
                                 mime="application/json", use_container_width=True)
 
         with ec3:
-            report = f"""BAO CAO PHAN TICH CAM XUC AM NHAC
+            report = f"""BÁO CÁO PHÂN TÍCH CẢM XÚC ÂM NHẠC
 ==========================================
 File:     {r['filename']}
 Model:    {r['model']}
-Time:     {r['timestamp']}
-Duration: {r['duration']:.1f}s
+Thời gian: {r['timestamp']}
+Thời lượng: {r['duration']:.1f}s
 
-KET QUA:
-- Valence trung binh: {r['avg_v']:+.3f}
-- Arousal trung binh: {r['avg_a']:+.3f}
-- Mood chu dao:       {MOOD_VI[r['dominant_mood']]}
-- So doan cam xuc:    {len(r['segments'])}
+KẾT QUẢ:
+- Valence trung bình: {r['avg_v']:+.3f}
+- Arousal trung bình: {r['avg_a']:+.3f}
+- Cảm xúc chủ đạo:    {MOOD_VI[r['dominant_mood']]}
+- Số đoạn cảm xúc:    {len(r['segments'])}
 
-CHI TIET TIMELINE:
+CHI TIẾT TIMELINE:
 """
             for i, s in enumerate(r['segments'], 1):
                 report += f"  {i}. {s['start']:6.1f}s -> {s['end']:6.1f}s : {MOOD_VI[s['mood']]}\n"
-            st.download_button("📝 Tai bao cao TXT", report,
+            st.download_button("📝 Tải báo cáo TXT", report,
                                 file_name=f"{r['filename']}_report.txt",
                                 mime="text/plain", use_container_width=True)
 
 
 # =============================================================================
-# TAB 2 — COMPARE 2 SONGS
+# TAB 2 — SO SÁNH 2 BÀI NHẠC
 # =============================================================================
 with tab2:
-    st.markdown("### ⚖️ So sanh 2 bai nhac")
-    st.caption("Upload 2 file de so sanh dien bien cam xuc song song.")
+    st.markdown("### ⚖️ So sánh 2 bài nhạc")
+    st.caption("Tải lên 2 file để so sánh diễn biến cảm xúc song song.")
 
     cc1, cc2 = st.columns(2)
     with cc1:
-        f1 = st.file_uploader("🎵 Bai 1", type=["mp3", "wav"], key="cmp1")
+        f1 = st.file_uploader("🎵 Bài 1", type=["mp3", "wav"], key="cmp1")
     with cc2:
-        f2 = st.file_uploader("🎵 Bai 2", type=["mp3", "wav"], key="cmp2")
+        f2 = st.file_uploader("🎵 Bài 2", type=["mp3", "wav"], key="cmp2")
 
-    if f1 and f2 and st.button("🔍 So sanh", type="primary"):
+    if f1 and f2 and st.button("🔍 So sánh", type="primary"):
         try:
-            with st.spinner("Dang phan tich 2 bai..."):
+            with st.spinner("Đang phân tích 2 bài..."):
                 model, dev = load_model(ckpt_file)
                 results = []
                 for f in [f1, f2]:
                     tmp = Path(tempfile.gettempdir()) / f.name
                     tmp.write_bytes(f.read())
-                    y, total, times, pr = predict(tmp, model, dev, smoothing)
+                    y, total, times, pr = predict(tmp, model, dev, DEFAULT_SMOOTHING)
                     results.append({
                         "name": f.name, "audio": str(tmp),
                         "times": times, "v": pr[:, 0], "a": pr[:, 1],
@@ -827,7 +848,7 @@ with tab2:
 
             fig_cmp = make_subplots(
                 rows=2, cols=1,
-                subplot_titles=("Valence comparison", "Arousal comparison"),
+                subplot_titles=("So sánh Valence", "So sánh Arousal"),
                 vertical_spacing=0.15,
             )
             colors = ["#4facfe", "#f5576c"]
@@ -845,12 +866,12 @@ with tab2:
             st.plotly_chart(fig_cmp, use_container_width=True)
 
             cmp_df = pd.DataFrame({
-                "Bai": [r['name'] for r in results],
+                "Bài": [r['name'] for r in results],
                 "Valence TB": [f"{r['avg_v']:+.3f}" for r in results],
                 "Arousal TB": [f"{r['avg_a']:+.3f}" for r in results],
-                "Mood chu dao": [f"{MOOD_EMOJIS[quadrant(r['avg_v'], r['avg_a'])]} "
-                                  f"{MOOD_VI[quadrant(r['avg_v'], r['avg_a'])]}"
-                                  for r in results],
+                "Cảm xúc chủ đạo": [f"{MOOD_EMOJIS[quadrant(r['avg_v'], r['avg_a'])]} "
+                                     f"{MOOD_VI[quadrant(r['avg_v'], r['avg_a'])]}"
+                                     for r in results],
             })
             st.dataframe(cmp_df, use_container_width=True, hide_index=True)
 
@@ -860,23 +881,23 @@ with tab2:
             sim = (corr_v + corr_a) / 2
             st.markdown(f"""
             <div class="insight-box">
-                🤝 <b>Do tuong dong cam xuc</b>: {sim*100:.1f}%
-                (Valence corr: {corr_v:.3f}, Arousal corr: {corr_a:.3f})
+                🤝 <b>Độ tương đồng cảm xúc</b>: {sim*100:.1f}%
+                (Tương quan Valence: {corr_v:.3f}, Tương quan Arousal: {corr_a:.3f})
             </div>
             """, unsafe_allow_html=True)
 
         except Exception as e:
-            st.error(f"Loi: {e}")
+            st.error(f"Lỗi: {e}")
 
 
 # =============================================================================
-# TAB 3 — MEL-SPECTROGRAM EXPLORER
+# TAB 3 — KHÁM PHÁ MEL-SPECTROGRAM
 # =============================================================================
 with tab3:
-    st.markdown("### 🔍 Kham pha Mel-Spectrogram")
-    st.caption("Xem dac trung audio ma model dung de du doan cam xuc.")
+    st.markdown("### 🔍 Khám phá Mel-Spectrogram")
+    st.caption("Xem đặc trưng âm thanh mà mô hình dùng để dự đoán cảm xúc.")
 
-    mel_file = st.file_uploader("Upload file de xem mel-spectrogram",
+    mel_file = st.file_uploader("Tải lên file để xem mel-spectrogram",
                                   type=["mp3", "wav"], key="mel_upload")
 
     if mel_file is not None:
@@ -884,7 +905,7 @@ with tab3:
         tmp.write_bytes(mel_file.read())
         st.audio(str(tmp))
 
-        with st.spinner("Trich xuat mel..."):
+        with st.spinner("Đang trích xuất mel-spectrogram..."):
             y, sr = librosa.load(tmp, sr=SR, mono=True)
             duration = len(y) / sr
 
@@ -893,18 +914,18 @@ with tab3:
                 n_mels=N_MELS, fmin=FMIN, fmax=FMAX, power=2.0)
             mel_db = librosa.power_to_db(mel_full, ref=np.max)
 
-        st.markdown("#### 〰️ Waveform")
+        st.markdown("#### 〰️ Dạng sóng (Waveform)")
         t_wave = np.arange(len(y)) / sr
         step = max(1, len(y) // 5000)
         fig_wave = go.Figure(go.Scatter(x=t_wave[::step], y=y[::step],
                                           line=dict(color="#4facfe", width=1)))
         fig_wave.update_layout(template="plotly_white", height=200,
-                                xaxis_title="Time (s)", yaxis_title="Amplitude",
+                                xaxis_title="Thời gian (s)", yaxis_title="Biên độ",
                                 paper_bgcolor='rgba(0,0,0,0)',
                                 margin=dict(t=20, b=40))
         st.plotly_chart(fig_wave, use_container_width=True)
 
-        st.markdown("#### 🌈 Mel-Spectrogram (Log scale)")
+        st.markdown("#### 🌈 Mel-Spectrogram (thang Log)")
         fig_mel = go.Figure(data=go.Heatmap(
             z=mel_db,
             x=np.linspace(0, duration, mel_db.shape[1]),
@@ -913,11 +934,11 @@ with tab3:
             colorbar=dict(title="dB"),
         ))
         fig_mel.update_layout(template="plotly_white", height=400,
-                               xaxis_title="Time (s)", yaxis_title="Mel frequency (Hz)",
+                               xaxis_title="Thời gian (s)", yaxis_title="Tần số Mel (Hz)",
                                paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_mel, use_container_width=True)
 
-        st.markdown("#### 📊 Thong ke audio")
+        st.markdown("#### 📊 Thống kê đặc trưng âm thanh")
         spec_centroid = librosa.feature.spectral_centroid(y=y, sr=SR)[0].mean()
         zero_crossing = librosa.feature.zero_crossing_rate(y)[0].mean()
         rms_energy = librosa.feature.rms(y=y)[0].mean()
@@ -929,36 +950,36 @@ with tab3:
             st.markdown(f"""<div class="metric-card">
                 <div class="metric-label">Tempo</div>
                 <div class="metric-value">{tempo_val:.0f}</div>
-                <div style="color:rgba(255,255,255,0.5)">BPM</div>
+                <div style="color:#5a6c7d">BPM</div>
             </div>""", unsafe_allow_html=True)
         with sc2:
             st.markdown(f"""<div class="metric-card">
-                <div class="metric-label">Spectral Centroid</div>
+                <div class="metric-label">Trọng tâm phổ</div>
                 <div class="metric-value">{spec_centroid:.0f}</div>
-                <div style="color:rgba(255,255,255,0.5)">Hz</div>
+                <div style="color:#5a6c7d">Hz</div>
             </div>""", unsafe_allow_html=True)
         with sc3:
             st.markdown(f"""<div class="metric-card">
-                <div class="metric-label">Zero Crossing Rate</div>
+                <div class="metric-label">Tỷ lệ qua 0</div>
                 <div class="metric-value">{zero_crossing:.3f}</div>
             </div>""", unsafe_allow_html=True)
         with sc4:
             st.markdown(f"""<div class="metric-card">
-                <div class="metric-label">RMS Energy</div>
+                <div class="metric-label">Năng lượng RMS</div>
                 <div class="metric-value">{rms_energy:.3f}</div>
             </div>""", unsafe_allow_html=True)
 
 
 # =============================================================================
-# TAB 4 — HISTORY
+# TAB 4 — LỊCH SỬ
 # =============================================================================
 with tab4:
-    st.markdown("### 📚 Lich su phan tich")
+    st.markdown("### 📚 Lịch sử phân tích")
 
     if not st.session_state.history:
-        st.info("Chua co phan tich nao. Quay lai tab 'Phan tich bai nhac' de bat dau!")
+        st.info("Chưa có phân tích nào. Quay lại tab 'Phân tích bài nhạc' để bắt đầu!")
     else:
-        st.caption(f"Da phan tich {len(st.session_state.history)} bai nhac trong phien nay.")
+        st.caption(f"Đã phân tích {len(st.session_state.history)} bài nhạc trong phiên này.")
 
         all_v = [r['avg_v'] for r in st.session_state.history]
         all_a = [r['avg_a'] for r in st.session_state.history]
@@ -966,29 +987,30 @@ with tab4:
 
         sh1, sh2, sh3 = st.columns(3)
         with sh1:
-            st.metric("Tong so bai", len(st.session_state.history))
+            st.metric("Tổng số bài", len(st.session_state.history))
         with sh2:
-            st.metric("V trung binh tat ca", f"{np.mean(all_v):+.3f}")
+            st.metric("V trung bình tất cả", f"{np.mean(all_v):+.3f}")
         with sh3:
             most_common = Counter(all_moods).most_common(1)[0][0]
-            st.metric("Mood pho bien nhat", MOOD_EMOJIS[most_common] + " " + MOOD_VI[most_common])
+            st.metric("Cảm xúc phổ biến nhất",
+                      MOOD_EMOJIS[most_common] + " " + MOOD_VI[most_common])
 
-        st.markdown("#### 📜 Danh sach")
+        st.markdown("#### 📜 Danh sách")
         hist_df = pd.DataFrame([
             {
                 "STT": i+1,
                 "File": r['filename'],
-                "Model": r['model'],
-                "Mood": f"{MOOD_EMOJIS[r['dominant_mood']]} {MOOD_VI[r['dominant_mood']]}",
-                "V_avg": f"{r['avg_v']:+.2f}",
-                "A_avg": f"{r['avg_a']:+.2f}",
-                "Time": r['timestamp'],
+                "Mô hình": r['model'],
+                "Cảm xúc": f"{MOOD_EMOJIS[r['dominant_mood']]} {MOOD_VI[r['dominant_mood']]}",
+                "V_TB": f"{r['avg_v']:+.2f}",
+                "A_TB": f"{r['avg_a']:+.2f}",
+                "Thời gian": r['timestamp'],
             }
             for i, r in enumerate(st.session_state.history)
         ])
         st.dataframe(hist_df, use_container_width=True, hide_index=True)
 
-        st.markdown("#### 📊 Phan bo cam xuc cua tat ca cac bai")
+        st.markdown("#### 📊 Phân bố cảm xúc của tất cả các bài")
         all_mood_counts = Counter(all_moods)
         fig_hist = go.Figure(data=[go.Bar(
             x=[MOOD_VI[m] for m in all_mood_counts.keys()],
@@ -999,10 +1021,10 @@ with tab4:
         )])
         fig_hist.update_layout(template="plotly_white", height=300,
                                 paper_bgcolor='rgba(0,0,0,0)',
-                                yaxis_title="So bai")
+                                yaxis_title="Số bài")
         st.plotly_chart(fig_hist, use_container_width=True)
 
-        st.markdown("#### 🎯 Tat ca bai tren ban do V-A")
+        st.markdown("#### 🎯 Tất cả bài trên bản đồ V-A")
         fig_scatter = go.Figure()
         for (vs, as_), name in QUADRANTS.items():
             fig_scatter.add_shape(
@@ -1028,42 +1050,42 @@ with tab4:
 
 
 # =============================================================================
-# TAB 5 — ABOUT
+# TAB 5 — GIỚI THIỆU
 # =============================================================================
 with tab5:
     st.markdown("""
-    ### ℹ️ Gioi thieu he thong
+    ### ℹ️ Giới thiệu hệ thống
 
-    #### 🎯 Muc tieu
-    Phan tich **dien bien cam xuc theo thoi gian** trong am nhac, du doan **Valence** (tich cuc/tieu cuc)
-    va **Arousal** (nang luong) cho moi cua so 0.5 giay.
+    #### 🎯 Mục tiêu
+    Phân tích **diễn biến cảm xúc theo thời gian** trong âm nhạc, dự đoán **Valence** (tích cực/tiêu cực)
+    và **Arousal** (năng lượng) cho mỗi cửa sổ 0.5 giây.
 
-    #### 🏗️ Kien truc
-    - **CNN encoder**: trich dac trung khong gian tu Mel-spectrogram (3 lop conv, 1.4M params)
-    - **BiLSTM**: mo hinh moi quan he thoi gian giua cac cua so 0.5s
-    - **Multi-head Attention**: bat dependency dai han giua cac timestep
-    - **CCC Loss + Class Weighting**: toi uu truc tiep metric danh gia + xu ly imbalance
+    #### 🏗️ Kiến trúc
+    - **CNN encoder**: trích đặc trưng không gian từ Mel-spectrogram (3 lớp conv)
+    - **BiLSTM**: mô hình mối quan hệ thời gian giữa các cửa sổ 0.5s
+    - **Multi-head Attention**: bắt dependency dài hạn giữa các timestep
+    - **Combined Loss + Class Weighting**: tối ưu trực tiếp metric đánh giá + xử lý imbalance
 
-    #### 📊 Dataset
-    - **DEAM** (1802 bai nhac phuong Tay, da the loai) — train chinh
-    - **PMEmo** (~767 bai Chinese pop) — cross-dataset evaluation
+    #### 📊 Dữ liệu
+    - **DEAM** (1802 bài nhạc phương Tây, đa thể loại) — train chính
+    - **PMEmo** (~767 bài Chinese pop) — cross-dataset evaluation
 
-    #### 📈 Ket qua
-    | Metric | Gia tri | So voi SOTA Aljanaki 2017 |
+    #### 📈 Kết quả
+    | Metric | Giá trị | So với SOTA Aljanaki 2017 |
     |---|---|---|
     | CCC_V (DEAM) | 0.65 | +116% |
     | CCC_A (DEAM) | 0.77 | +24% |
     | CCC_V (PMEmo, transfer) | 0.69 | best in class |
 
-    #### 🎨 Bon vung cam xuc V-A (Russell 1980)
+    #### 🎨 Bốn vùng cảm xúc V-A (Russell 1980)
     """)
 
     cols = st.columns(4)
     quadrants_info = [
-        ("happy/excited", "Vui ve / Hung phan", "V > 0, A > 0", "Pop, Dance, Disco"),
-        ("tense/angry", "Cang thang / Tuc gian", "V < 0, A > 0", "Heavy Metal, Punk"),
-        ("sad", "Buon ba", "V < 0, A < 0", "Blues, Slow ballad"),
-        ("calm/relaxed", "Thu thai / Binh yen", "V > 0, A < 0", "Jazz, Classical, Lo-fi"),
+        ("happy/excited", "Vui vẻ / Hưng phấn", "V > 0, A > 0", "Pop, Dance, Disco"),
+        ("tense/angry", "Căng thẳng / Tức giận", "V < 0, A > 0", "Heavy Metal, Punk"),
+        ("sad", "Buồn bã", "V < 0, A < 0", "Blues, Slow ballad"),
+        ("calm/relaxed", "Thư thái / Bình yên", "V > 0, A < 0", "Jazz, Classical, Lo-fi"),
     ]
     for col, (mood, name, va, genres) in zip(cols, quadrants_info):
         color = MOOD_COLORS[mood]
@@ -1085,18 +1107,18 @@ with tab5:
 
     st.markdown("""
     ---
-    #### 🛠️ Cong nghe su dung
+    #### 🛠️ Công nghệ sử dụng
     - **Backend**: PyTorch + Librosa + NumPy
     - **Frontend**: Streamlit + Plotly
     - **Audio**: Mel-spectrogram (64 mel-bands, 22050 Hz, hop 256)
 
-    #### 📚 Tai lieu tham khao
+    #### 📚 Tài liệu tham khảo
     1. Aljanaki et al. (2017). *Developing a benchmark for emotional analysis of music*. PLoS ONE.
     2. Zhang et al. (2018). *The PMEmo Dataset for Music Emotion Recognition*. ICMR.
     3. Vaswani et al. (2017). *Attention is All You Need*. NeurIPS.
 
-    #### 👨‍🎓 Tac gia
-    Phung — Master Thesis — Khoa hoc May tinh Ung dung
+    #### 👨‍🎓 Tác giả
+    Phụng — Master Thesis — Khoa học Máy tính Ứng dụng
     """)
 
 
@@ -1105,7 +1127,7 @@ with tab5:
 # =============================================================================
 st.markdown("""
 <div class="footer">
-    🎵 Music Emotion Analyzer | Master Thesis Demo |
+    🎵 Phân tích Cảm xúc Âm nhạc | Master Thesis Demo |
     Built with Streamlit, PyTorch & ❤️
 </div>
 """, unsafe_allow_html=True)
