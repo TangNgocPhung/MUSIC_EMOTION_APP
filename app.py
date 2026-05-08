@@ -1402,7 +1402,7 @@ with tab3:
     st.caption("Xem đặc trưng âm thanh mà mô hình AI dùng để dự đoán cảm xúc.")
 
     # === GIẢI THÍCH MỤC ĐÍCH CỦA TAB NÀY ===
-    with st.expander("❓ **Tab này dùng để làm gì?** (Đọc trước nếu bạn mới sử dụng)", expanded=True):
+    with st.expander("❓ **Tab này dùng để làm gì?**", expanded=True):
         st.markdown("""
         ### 🎯 Mục đích
 
@@ -1417,13 +1417,6 @@ with tab3:
         | 2 | **Mel-Spectrogram** | Xem "ảnh chụp" tần số âm thanh — đây là **input thực tế của AI** |
         | 3 | **Thống kê đặc trưng** | Đo các chỉ số khoa học: nhịp độ, độ sáng, độ ồn... |
         | 4 | **Hiểu cách AI nhìn nhạc** | Tham khảo trước khi dùng tab "Phân tích bài nhạc" |
-
-        ### 👥 Ai nên dùng tab này?
-
-        - 🎓 **Sinh viên/giảng viên**: Hiểu cơ chế hoạt động của model
-        - 🎵 **Nhạc sĩ/producer**: Phân tích đặc trưng âm thanh của bài
-        - 🔬 **Nhà nghiên cứu**: So sánh đặc trưng giữa các thể loại nhạc
-        - 👨‍💻 **Người tò mò**: Xem AI "nhìn" nhạc như thế nào
 
         ### 📌 Khác biệt với Tab "Phân tích bài nhạc"?
 
