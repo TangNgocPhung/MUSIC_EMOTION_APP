@@ -173,6 +173,57 @@ def smooth_predictions(arr, window=5):
     return smoothed
 
 
+# =============================================================================
+# 3.1. HÀM SINH GIẢI THÍCH DÀNH CHO NGƯỜI KHÔNG CHUYÊN
+# =============================================================================
+def describe_valence(v):
+    """Mô tả mức Valence bằng ngôn ngữ thường."""
+    if v >= 0.5:    return "RẤT TÍCH CỰC", "Bài nhạc nghe rất vui, hạnh phúc"
+    if v >= 0.15:   return "TÍCH CỰC", "Bài nhạc nghe vui, dễ chịu"
+    if v >= -0.15:  return "TRUNG TÍNH", "Bài nhạc cân bằng, không quá vui cũng không quá buồn"
+    if v >= -0.5:   return "TIÊU CỰC NHẸ", "Bài nhạc hơi buồn, u sầu nhẹ"
+    return "RẤT TIÊU CỰC", "Bài nhạc rất buồn, sầu thảm"
+
+
+def describe_arousal(a):
+    """Mô tả mức Arousal bằng ngôn ngữ thường."""
+    if a >= 0.5:    return "RẤT CAO", "Năng lượng mãnh liệt, sôi động (tiếng trống mạnh, tempo nhanh)"
+    if a >= 0.15:   return "CAO", "Có nhịp điệu rõ ràng, tương đối sôi động"
+    if a >= -0.15:  return "TRUNG BÌNH", "Năng lượng cân bằng, không quá nhanh cũng không quá chậm"
+    if a >= -0.5:   return "THẤP", "Bài nhạc chậm rãi, êm dịu"
+    return "RẤT THẤP", "Bài nhạc rất yên tĩnh, gần như tĩnh lặng"
+
+
+def explain_emotion_decision(v, a, mood):
+    """Giải thích vì sao model phân loại thành cảm xúc này."""
+    v_label, v_desc = describe_valence(v)
+    a_label, a_desc = describe_arousal(a)
+
+    # Phân tích theo dấu V và A
+    v_sign = "DƯƠNG (+)" if v >= 0 else "ÂM (−)"
+    a_sign = "DƯƠNG (+)" if a >= 0 else "ÂM (−)"
+
+    explanation = f"""
+**Bước 1: Đo 2 chỉ số chính**
+- 🎯 **Valence = {v:+.2f}** → mức {v_label}: _{v_desc}_
+- ⚡ **Arousal = {a:+.2f}** → mức {a_label}: _{a_desc}_
+
+**Bước 2: Kết hợp dấu của V và A**
+- Valence {v_sign} và Arousal {a_sign}
+- → Kết quả: **{MOOD_EMOJIS[mood]} {MOOD_VI[mood]}**
+
+**Bước 3: Cảnh báo độ tin cậy**
+"""
+    confidence = min(abs(v), abs(a))
+    if confidence < 0.1:
+        explanation += "⚠️ Cả V và A đều gần 0 → kết quả **ranh giới**, có thể model dao động giữa 2 cảm xúc."
+    elif confidence < 0.25:
+        explanation += "🟡 V hoặc A gần 0 → kết quả **trung bình**, model khá chắc chắn nhưng có thể nhầm."
+    else:
+        explanation += "✅ V và A đều cách xa 0 → kết quả **CHẮC CHẮN**, model phân loại rõ ràng."
+    return explanation
+
+
 @st.cache_resource
 def load_model(ckpt_name):
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -638,7 +689,44 @@ with tab1:
             )
         st.markdown(f'<div class="insight-box">💡 {insight_text}</div>', unsafe_allow_html=True)
 
+        # === GIẢI THÍCH CHI TIẾT CÁCH MODEL QUYẾT ĐỊNH CẢM XÚC ===
+        with st.expander("🎓 **Giải thích chi tiết: Vì sao bài này được phân loại như vậy?** (cho người không chuyên)"):
+            st.markdown(explain_emotion_decision(r['avg_v'], r['avg_a'], r['dominant_mood']))
+
+            st.markdown("---")
+            st.markdown("""
+            #### 📚 Hiểu về 2 chỉ số Valence và Arousal
+
+            Trong khoa học âm nhạc, mọi cảm xúc của bài nhạc đều có thể đo bằng **2 con số**:
+
+            **🎯 Valence (Tích cực/Tiêu cực)** — _Thang từ -1 đến +1_
+            - **+1.0** = Cực kỳ vui (như "Happy" của Pharrell Williams)
+            - **+0.5** = Vui vẻ rõ rệt (Pop ballad happy)
+            - **0.0** = Trung tính (nhạc nền không cảm xúc)
+            - **-0.5** = Buồn rõ rệt (Slow ballad)
+            - **-1.0** = Cực kỳ buồn (Funeral march)
+
+            **⚡ Arousal (Năng lượng)** — _Thang từ -1 đến +1_
+            - **+1.0** = Cực kỳ sôi động (EDM, Heavy Metal)
+            - **+0.5** = Tempo nhanh, có nhịp (Pop, Rock)
+            - **0.0** = Năng lượng vừa phải
+            - **-0.5** = Chậm rãi (Acoustic, Slow Jazz)
+            - **-1.0** = Gần như tĩnh lặng (Ambient, Drone)
+
+            #### 🗺️ 4 vùng cảm xúc khi kết hợp V và A
+
+            | Valence | Arousal | Cảm xúc | Ví dụ thể loại |
+            |---|---|---|---|
+            | + (vui) | + (cao) | 😊 **Vui vẻ / Hưng phấn** | Pop, Dance, Disco |
+            | − (buồn) | + (cao) | 😠 **Căng thẳng / Tức giận** | Heavy Metal, Punk |
+            | − (buồn) | − (thấp) | 😢 **Buồn bã** | Blues, Slow Ballad |
+            | + (vui) | − (thấp) | 😌 **Thư thái / Bình yên** | Lo-fi, Jazz, Classical |
+
+            **Mô hình của Russell (1980)** — đây là cách tâm lý học chuẩn để biểu diễn cảm xúc.
+            """)
+
         st.markdown("### 📉 Diễn biến V-A theo thời gian")
+        st.caption("📊 Biểu đồ thể hiện cảm xúc thay đổi từng giây trong bài nhạc")
         times_arr = np.array(r['times'])
         v_arr = np.array(r['valence'])
         a_arr = np.array(r['arousal'])
@@ -663,10 +751,46 @@ with tab1:
         )
         st.plotly_chart(fig_timeline, use_container_width=True)
 
+        # === GIẢI THÍCH CÁCH ĐỌC BIỂU ĐỒ TIMELINE ===
+        with st.expander("📖 **Cách đọc biểu đồ này** (cho người không chuyên)"):
+            # Phân tích xu hướng thực tế của bài nhạc
+            v_start = float(np.mean(v_arr[:5])); v_end = float(np.mean(v_arr[-5:]))
+            a_start = float(np.mean(a_arr[:5])); a_end = float(np.mean(a_arr[-5:]))
+            v_trend = "TĂNG (vui dần lên)" if v_end - v_start > 0.1 else \
+                      "GIẢM (buồn dần)" if v_start - v_end > 0.1 else "ỔN ĐỊNH"
+            a_trend = "TĂNG (sôi động dần)" if a_end - a_start > 0.1 else \
+                      "GIẢM (lắng dần)" if a_start - a_end > 0.1 else "ỔN ĐỊNH"
+
+            st.markdown(f"""
+            #### 🔵 Đường XANH DƯƠNG = Valence (Mức độ tích cực)
+            - **Lên cao (>0)** = Bài đang VUI hơn 😊
+            - **Xuống thấp (<0)** = Bài đang BUỒN hơn 😢
+            - **Cắt qua đường 0** = Cảm xúc CHUYỂN HƯỚNG (vui → buồn hoặc ngược lại)
+
+            #### 🔴 Đường ĐỎ = Arousal (Mức độ năng lượng)
+            - **Lên cao (>0)** = Bài đang SÔI ĐỘNG hơn ⚡
+            - **Xuống thấp (<0)** = Bài đang YÊN TĨNH hơn 🌙
+
+            ---
+
+            #### 📊 Phân tích bài nhạc của bạn:
+
+            - **Valence**: bắt đầu **{v_start:+.2f}**, kết thúc **{v_end:+.2f}** → xu hướng **{v_trend}**
+            - **Arousal**: bắt đầu **{a_start:+.2f}**, kết thúc **{a_end:+.2f}** → xu hướng **{a_trend}**
+
+            #### 💡 Ý nghĩa:
+            - **2 đường cùng đi LÊN** → Bài đang "BUNG NỞ" (ví dụ: chorus, cao trào)
+            - **2 đường cùng đi XUỐNG** → Bài đang "LẮNG XUỐNG" (ví dụ: outro, đoạn lặng)
+            - **Đường xanh ↑ + đường đỏ ↓** → Đang chuyển sang ÊM DỊU, vui nhẹ
+            - **Đường xanh ↓ + đường đỏ ↑** → Đang chuyển sang CĂNG THẲNG
+            - **Hai đường gần nhau** → Cảm xúc nhất quán, không "nổi loạn"
+            """)
+
         col_a, col_b = st.columns([2, 1])
 
         with col_a:
             st.markdown("#### 🎨 Bản đồ cảm xúc theo thời gian")
+            st.caption("Mỗi vùng màu = 1 cảm xúc đang chiếm ưu thế trong khoảng thời gian đó")
             fig_mood = go.Figure()
             for s in r['segments']:
                 color = MOOD_COLORS.get(s['mood'], "#95a5a6")
@@ -692,8 +816,22 @@ with tab1:
             )
             st.plotly_chart(fig_mood, use_container_width=True)
 
+            # === GIẢI THÍCH BẢN ĐỒ MOOD ===
+            with st.expander("ℹ️ Giải thích biểu đồ này"):
+                st.markdown("""
+                **Cách đọc:**
+                - 🟠 **Cam** = Vui vẻ / Hưng phấn (V+, A+)
+                - 🔴 **Đỏ** = Căng thẳng / Tức giận (V−, A+)
+                - 🔵 **Xanh dương** = Buồn bã (V−, A−)
+                - 🟢 **Xanh lá** = Thư thái / Bình yên (V+, A−)
+
+                **Đoạn càng DÀI** = Cảm xúc đó duy trì càng lâu trong bài.
+                **Nhiều đoạn liên tiếp khác màu** = Bài có nhiều biến chuyển cảm xúc (kể chuyện).
+                """)
+
         with col_b:
             st.markdown("#### 🎯 Quỹ đạo V-A")
+            st.caption("Đường đi cảm xúc trên bản đồ 2 chiều — đậm = đầu bài, sáng = cuối bài")
             fig_va = go.Figure()
             fig_va.add_shape(type="rect", x0=0, y0=0, x1=1, y1=1,
                              fillcolor="rgba(243,156,18,0.1)", line_width=0)
@@ -725,10 +863,28 @@ with tab1:
             )
             st.plotly_chart(fig_va, use_container_width=True)
 
+            # === GIẢI THÍCH QUỸ ĐẠO V-A ===
+            with st.expander("ℹ️ Giải thích quỹ đạo"):
+                st.markdown("""
+                **Cách đọc:**
+                - **Trục NGANG** = Valence (càng phải = càng vui)
+                - **Trục DỌC** = Arousal (càng lên = càng sôi động)
+                - **Màu điểm** = Thời gian (đậm = đầu, sáng = cuối)
+
+                **4 góc tương ứng 4 cảm xúc** (xem 4 emoji ở 4 góc).
+
+                **Quỹ đạo nói gì?**
+                - Ngắn, tập trung 1 góc → Cảm xúc nhất quán
+                - Dài, trải rộng → Cảm xúc biến chuyển nhiều
+                - Đi từ góc dưới-phải lên trên-phải → Bình yên → Hưng phấn (cao trào)
+                - Vòng tròn quanh tâm (0,0) → Cảm xúc trung tính, không rõ ràng
+                """)
+
         col_c, col_d = st.columns([1, 1])
 
         with col_c:
             st.markdown("#### 🥧 Phân bố cảm xúc")
+            st.caption("Tỷ lệ thời gian mỗi cảm xúc xuất hiện trong toàn bài")
             mood_counts = Counter(r['moods'])
             fig_pie = go.Figure(data=[go.Pie(
                 labels=[MOOD_VI[m] for m in mood_counts.keys()],
@@ -747,8 +903,25 @@ with tab1:
             )
             st.plotly_chart(fig_pie, use_container_width=True)
 
+            # === GIẢI THÍCH PIE CHART ===
+            with st.expander("ℹ️ Cách đọc biểu đồ tròn"):
+                # Tự động tìm cảm xúc chiếm nhiều nhất
+                most_mood = max(mood_counts, key=mood_counts.get)
+                most_pct = 100 * mood_counts[most_mood] / sum(mood_counts.values())
+                st.markdown(f"""
+                **Bài nhạc của bạn:**
+                - Cảm xúc **{MOOD_VI[most_mood]}** chiếm **{most_pct:.1f}%** thời lượng
+                - Có {len(mood_counts)} loại cảm xúc khác nhau xuất hiện
+
+                **Hiểu đơn giản:**
+                - Pie 1 màu lớn → Bài có cảm xúc CHỦ ĐẠO RÕ RỆT
+                - Pie chia đều → Bài có nhiều cảm xúc đan xen
+                - Pie nhiều miếng nhỏ → Bài "phức tạp" về cảm xúc
+                """)
+
         with col_d:
             st.markdown("#### 📋 Bảng các đoạn cảm xúc")
+            st.caption("Liệt kê chi tiết từng đoạn cảm xúc trong bài (theo thứ tự thời gian)")
             seg_df = pd.DataFrame([
                 {
                     "#": i+1,
@@ -1118,7 +1291,7 @@ with tab5:
     3. Vaswani et al. (2017). *Attention is All You Need*. NeurIPS.
 
     #### 👨‍🎓 Tác giả
-    Phụng — Master Thesis — Khoa học Máy tính Ứng dụng
+    Tăng Ngọc Phụng — KHMT836027 — Khoa học Máy tính Ứng dụng 
     """)
 
 
