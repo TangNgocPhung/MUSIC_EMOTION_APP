@@ -887,20 +887,36 @@ with tab1:
             st.markdown("#### 🥧 Phân bố cảm xúc")
             st.caption("Tỷ lệ thời gian mỗi cảm xúc xuất hiện trong toàn bài")
             mood_counts = Counter(r['moods'])
+            max_count = max(mood_counts.values())
             fig_pie = go.Figure(data=[go.Pie(
                 labels=[MOOD_VI[m] for m in mood_counts.keys()],
                 values=list(mood_counts.values()),
                 marker=dict(colors=[MOOD_COLORS[m] for m in mood_counts.keys()],
                             line=dict(color='white', width=2)),
                 hole=0.45,
+                # Đặt label + % BÊN NGOÀI pie để đọc rõ tiếng Việt có dấu
                 textinfo='label+percent',
-                textfont=dict(color='white', size=12, family='Arial Black'),
+                textposition='outside',
+                # Font mặc định hỗ trợ tiếng Việt, màu đen đậm để đọc rõ trên nền trắng
+                textfont=dict(color='#2c3e50', size=13),
+                insidetextorientation='radial',
+                # Hover chi tiết khi rê chuột
+                hovertemplate='<b>%{label}</b><br>Số timestep: %{value}<br>Tỷ lệ: %{percent}<extra></extra>',
+                # Tách nhẹ slice lớn nhất để làm nổi bật
+                pull=[0.04 if v == max_count else 0 for v in mood_counts.values()],
+                sort=False,
             )])
             fig_pie.update_layout(
-                template="plotly_white", height=350,
+                template="plotly_white", height=400,
                 paper_bgcolor='rgba(0,0,0,0)',
-                showlegend=False,
-                margin=dict(t=20, b=20),
+                showlegend=True,
+                legend=dict(
+                    orientation="v",
+                    yanchor="middle", y=0.5,
+                    xanchor="left", x=1.05,
+                    font=dict(size=11, color='#2c3e50'),
+                ),
+                margin=dict(t=40, b=40, l=40, r=120),
             )
             st.plotly_chart(fig_pie, use_container_width=True)
 
