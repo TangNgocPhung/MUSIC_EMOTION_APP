@@ -51,11 +51,12 @@ DEFAULT_MIN_SEG_LEN = 3.0    # Đoạn ngắn hơn 3 giây sẽ được gộp
 CKPT_DIR = Path(".")
 
 # === 4 MODELS CỦA ĐỀ TÀI ===
+# Tên ngắn gọn để combobox hiển thị đầy đủ, không bị cắt thành "..."
 AVAILABLE_CHECKPOINTS = {
-    "⭐ Mô hình đề xuất chính (Attention + Combined Loss + Balanced)": "best_attention_balanced.pt",
-    "Mô hình Attention thuần (CCC Loss)":                              "best_attention.pt",
-    "Mô hình Baseline (CNN + BiLSTM)":                                  "best.pt",
-    "Mô hình Transfer Learning (DEAM → PMEmo)":                         "best_pmemo_ft_head.pt",
+    "⭐ Đề xuất chính (Best)":      "best_attention_balanced.pt",
+    "Attention + CCC Loss":          "best_attention.pt",
+    "Baseline (SmoothL1)":           "best.pt",
+    "Transfer Learning":             "best_pmemo_ft_head.pt",
 }
 
 QUADRANTS = {(+1,+1):"happy/excited", (-1,+1):"tense/angry",
@@ -526,24 +527,24 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📊 Thông tin mô hình")
 
-    # Mô tả chi tiết cho 4 models
+    # Mô tả chi tiết cho 4 models (key ngắn gọn khớp với AVAILABLE_CHECKPOINTS)
     model_info = {
-        "⭐ Mô hình đề xuất chính (Attention + Combined Loss + Balanced)":
+        "⭐ Đề xuất chính (Best)":
             ("CNN + BiLSTM + Multi-head Attention",
              "Combined Loss + Class Weighting",
              "DEAM (1802 bài)",
              "Mô hình cuối cùng, xử lý class imbalance"),
-        "Mô hình Attention thuần (CCC Loss)":
+        "Attention + CCC Loss":
             ("CNN + BiLSTM + Multi-head Attention",
              "CCC Loss",
              "DEAM (1802 bài)",
              "Chứng minh đóng góp của Attention"),
-        "Mô hình Baseline (CNN + BiLSTM)":
+        "Baseline (SmoothL1)":
             ("CNN + BiLSTM",
              "SmoothL1 Loss",
              "DEAM (1802 bài)",
              "Mô hình tham chiếu cơ bản"),
-        "Mô hình Transfer Learning (DEAM → PMEmo)":
+        "Transfer Learning":
             ("CNN + BiLSTM (Freeze CNN)",
              "SmoothL1 Loss",
              "Pretrain DEAM + Fine-tune PMEmo",
@@ -1300,7 +1301,6 @@ with tab5:
 # =============================================================================
 st.markdown("""
 <div class="footer">
-    🎵 Phân tích Cảm xúc Âm nhạc |Advanced Machine Learning|  Academic Supervisor: Dr. Ngo Quoc Viet|
-    Built with Streamlit, PyTorch & ❤️
+    🎵 Music Emotion Recognition (MER) |Advanced Machine Learning|  Academic Supervisor: Dr. Ngo Quoc Viet
 </div>
 """, unsafe_allow_html=True)
