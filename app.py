@@ -588,7 +588,7 @@ with st.sidebar:
 # =============================================================================
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🎼 Phân tích bài nhạc",
-    "⚖️ So sánh 2 bài",
+    "⚖️ So sánh giữa các bài",
     "🔍 Mel-Spectrogram",
     "📚 Lịch sử phân tích",
     "ℹ️ Giới thiệu",
@@ -1100,7 +1100,7 @@ with tab2:
             st.plotly_chart(fig_cmp, use_container_width=True)
 
             # === GIẢI THÍCH BIỂU ĐỒ ===
-            with st.expander("📖 **Cách đọc biểu đồ này** (cho người không chuyên)"):
+            with st.expander("📖 **Cách đọc biểu đồ này**"):
                 st.markdown(f"""
                 Biểu đồ chia thành **2 phần** — phần TRÊN là Valence, phần DƯỚI là Arousal.
 
