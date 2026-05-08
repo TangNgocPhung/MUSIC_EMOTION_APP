@@ -988,59 +988,149 @@ CHI TIẾT TIMELINE:
 
 
 # =============================================================================
-# TAB 2 — SO SÁNH 2 BÀI NHẠC
+# TAB 2 — SO SÁNH NHIỀU BÀI NHẠC (2-10 BÀI)
 # =============================================================================
 with tab2:
-    st.markdown("### ⚖️ So sánh 2 bài nhạc")
-    st.caption("Tải lên 2 file để so sánh diễn biến cảm xúc song song.")
+    st.markdown("### ⚖️ So sánh nhiều bài nhạc")
+    st.caption("Chọn số lượng bài, tải lên các file và bấm So sánh để xem diễn biến cảm xúc song song.")
 
-    cc1, cc2 = st.columns(2)
-    with cc1:
-        f1 = st.file_uploader("🎵 Bài 1", type=["mp3", "wav"], key="cmp1")
-    with cc2:
-        f2 = st.file_uploader("🎵 Bài 2", type=["mp3", "wav"], key="cmp2")
+    # === BƯỚC 1: NHẬP SỐ LƯỢNG BÀI ===
+    n_songs = st.number_input(
+        "📊 **Số lượng bài muốn so sánh**",
+        min_value=2, max_value=10, value=2, step=1,
+        help="Chọn từ 2 đến 10 bài nhạc để so sánh"
+    )
 
-    if f1 and f2 and st.button("🔍 So sánh", type="primary"):
+    st.markdown(f"#### 📤 Tải lên {n_songs} bài nhạc:")
+
+    # === BƯỚC 2: HIỂN THỊ N FILE UPLOADER ĐỘNG ===
+    files = []
+    cols_per_row = min(n_songs, 3)  # Tối đa 3 cột mỗi hàng
+    for row_start in range(0, n_songs, cols_per_row):
+        cols = st.columns(cols_per_row)
+        for i in range(row_start, min(row_start + cols_per_row, n_songs)):
+            with cols[i - row_start]:
+                f = st.file_uploader(
+                    f"🎵 Bài {i+1}",
+                    type=["mp3", "wav"],
+                    key=f"cmp_{i}"
+                )
+                files.append(f)
+
+    all_uploaded = all(f is not None for f in files)
+
+    if not all_uploaded:
+        st.info(f"⏳ Vui lòng tải lên đủ {n_songs} bài để bắt đầu so sánh.")
+
+    if all_uploaded and st.button("🔍 So sánh", type="primary", use_container_width=True):
         try:
-            with st.spinner("Đang phân tích 2 bài..."):
+            with st.spinner(f"⏳ Đang phân tích {n_songs} bài nhạc..."):
                 model, dev = load_model(ckpt_file)
                 results = []
-                for f in [f1, f2]:
+                progress_bar = st.progress(0)
+                for i, f in enumerate(files):
                     tmp = Path(tempfile.gettempdir()) / f.name
                     tmp.write_bytes(f.read())
                     y, total, times, pr = predict(tmp, model, dev, DEFAULT_SMOOTHING)
+                    moods = [quadrant(v, a) for v, a in pr]
+                    segs = group_timeline(times, moods, DEFAULT_MIN_SEG_LEN)
                     results.append({
                         "name": f.name, "audio": str(tmp),
                         "times": times, "v": pr[:, 0], "a": pr[:, 1],
                         "avg_v": float(pr[:, 0].mean()),
                         "avg_a": float(pr[:, 1].mean()),
+                        "duration": total,
+                        "segments": segs,
+                        "moods": moods,
                     })
+                    progress_bar.progress((i + 1) / n_songs)
+                progress_bar.empty()
 
-            for i, r in enumerate(results):
-                st.markdown(f"#### 🎵 {r['name']}")
-                st.audio(r['audio'])
+            st.success(f"✅ Đã phân tích xong {n_songs} bài!")
+
+            # === HIỂN THỊ AUDIO PLAYERS ===
+            st.markdown("### 🎵 Nghe lại các bài đã upload")
+            audio_cols_per_row = min(n_songs, 3)
+            for row_start in range(0, n_songs, audio_cols_per_row):
+                acols = st.columns(audio_cols_per_row)
+                for i in range(row_start, min(row_start + audio_cols_per_row, n_songs)):
+                    with acols[i - row_start]:
+                        short_name = results[i]['name'][:25] + "..." if len(results[i]['name']) > 25 else results[i]['name']
+                        st.markdown(f"**🎵 Bài {i+1}**: {short_name}")
+                        st.audio(results[i]['audio'])
+
+            # === BIỂU ĐỒ SO SÁNH ===
+            st.markdown("### 📈 Biểu đồ so sánh diễn biến cảm xúc")
+
+            # Bảng màu cho tối đa 10 bài
+            colors = ["#4facfe", "#f5576c", "#43e97b", "#f093fb",
+                      "#feca57", "#ff6b6b", "#48dbfb", "#a55eea",
+                      "#fd79a8", "#fdcb6e"]
 
             fig_cmp = make_subplots(
                 rows=2, cols=1,
-                subplot_titles=("So sánh Valence", "So sánh Arousal"),
-                vertical_spacing=0.15,
+                subplot_titles=("📊 So sánh Valence (Tích cực/Tiêu cực) theo thời gian",
+                                "📊 So sánh Arousal (Năng lượng) theo thời gian"),
+                vertical_spacing=0.18,
             )
-            colors = ["#4facfe", "#f5576c"]
             for i, r in enumerate(results):
-                fig_cmp.add_trace(go.Scatter(x=r['times'], y=r['v'],
-                                              name=f"V — {r['name'][:20]}",
-                                              line=dict(color=colors[i], width=3)),
-                                  row=1, col=1)
-                fig_cmp.add_trace(go.Scatter(x=r['times'], y=r['a'],
-                                              name=f"A — {r['name'][:20]}",
-                                              line=dict(color=colors[i], width=3, dash='dash')),
-                                  row=2, col=1)
-            fig_cmp.update_layout(template="plotly_white", height=600,
-                                   paper_bgcolor='rgba(0,0,0,0)')
+                color = colors[i % len(colors)]
+                fig_cmp.add_trace(go.Scatter(
+                    x=r['times'], y=r['v'],
+                    name=f"Bài {i+1}",
+                    legendgroup=f"song{i}",
+                    line=dict(color=color, width=2.5),
+                    hovertemplate=f'<b>Bài {i+1}</b><br>Thời gian: %{{x:.1f}}s<br>Valence: %{{y:.3f}}<extra></extra>'
+                ), row=1, col=1)
+                fig_cmp.add_trace(go.Scatter(
+                    x=r['times'], y=r['a'],
+                    name=f"Bài {i+1}",
+                    legendgroup=f"song{i}",
+                    showlegend=False,
+                    line=dict(color=color, width=2.5, dash='dash'),
+                    hovertemplate=f'<b>Bài {i+1}</b><br>Thời gian: %{{x:.1f}}s<br>Arousal: %{{y:.3f}}<extra></extra>'
+                ), row=2, col=1)
+            fig_cmp.update_xaxes(title_text="Thời gian (giây)", row=2, col=1)
+            fig_cmp.update_yaxes(title_text="Valence", row=1, col=1, range=[-1.1, 1.1])
+            fig_cmp.update_yaxes(title_text="Arousal", row=2, col=1, range=[-1.1, 1.1])
+            fig_cmp.add_hline(y=0, line_dash="dot", line_color="gray", row=1, col=1)
+            fig_cmp.add_hline(y=0, line_dash="dot", line_color="gray", row=2, col=1)
+            fig_cmp.update_layout(template="plotly_white", height=650,
+                                   paper_bgcolor='rgba(0,0,0,0)', hovermode='x unified')
             st.plotly_chart(fig_cmp, use_container_width=True)
 
+            # === GIẢI THÍCH BIỂU ĐỒ ===
+            with st.expander("📖 **Cách đọc biểu đồ này** (cho người không chuyên)"):
+                st.markdown(f"""
+                Biểu đồ chia thành **2 phần** — phần TRÊN là Valence, phần DƯỚI là Arousal.
+
+                **🔵 Phần TRÊN — Valence (đường liền nét)**
+                - Thể hiện mức độ **tích cực/tiêu cực** của bài nhạc theo thời gian
+                - Đường **lên cao** (>0) = bài đang VUI hơn 😊
+                - Đường **xuống thấp** (<0) = bài đang BUỒN hơn 😢
+                - Đường ngang **0** = ranh giới giữa vui và buồn
+
+                **🔴 Phần DƯỚI — Arousal (đường nét đứt)**
+                - Thể hiện mức độ **năng lượng** của bài nhạc theo thời gian
+                - Đường **lên cao** (>0) = bài đang SÔI ĐỘNG hơn ⚡
+                - Đường **xuống thấp** (<0) = bài đang YÊN TĨNH hơn 🌙
+
+                **🎨 Mỗi màu = 1 bài nhạc**
+                - {n_songs} bài được phân biệt bằng {n_songs} màu khác nhau
+                - Cùng màu xuất hiện ở cả phần trên và dưới (Valence + Arousal của cùng 1 bài)
+
+                **💡 Cách so sánh giữa các bài:**
+                - **Các đường đi cùng xu hướng** → Các bài có cảm xúc TƯƠNG TỰ
+                - **Các đường ngược nhau** → Các bài có cảm xúc TRÁI NGƯỢC
+                - **Khoảng cách giữa các đường** = mức độ KHÁC BIỆT giữa các bài
+                """)
+
+            # === BẢNG SO SÁNH TỔNG HỢP ===
+            st.markdown("### 📋 Bảng tổng hợp")
             cmp_df = pd.DataFrame({
-                "Bài": [r['name'] for r in results],
+                "STT": [f"Bài {i+1}" for i in range(len(results))],
+                "Tên file": [r['name'][:40] + "..." if len(r['name']) > 40 else r['name'] for r in results],
+                "Thời lượng": [f"{r['duration']:.1f}s" for r in results],
                 "Valence TB": [f"{r['avg_v']:+.3f}" for r in results],
                 "Arousal TB": [f"{r['avg_a']:+.3f}" for r in results],
                 "Cảm xúc chủ đạo": [f"{MOOD_EMOJIS[quadrant(r['avg_v'], r['avg_a'])]} "
@@ -1049,19 +1139,259 @@ with tab2:
             })
             st.dataframe(cmp_df, use_container_width=True, hide_index=True)
 
-            min_len = min(len(results[0]['v']), len(results[1]['v']))
-            corr_v = np.corrcoef(results[0]['v'][:min_len], results[1]['v'][:min_len])[0, 1]
-            corr_a = np.corrcoef(results[0]['a'][:min_len], results[1]['a'][:min_len])[0, 1]
-            sim = (corr_v + corr_a) / 2
-            st.markdown(f"""
-            <div class="insight-box">
-                🤝 <b>Độ tương đồng cảm xúc</b>: {sim*100:.1f}%
-                (Tương quan Valence: {corr_v:.3f}, Tương quan Arousal: {corr_a:.3f})
-            </div>
-            """, unsafe_allow_html=True)
+            # === MA TRẬN ĐỘ TƯƠNG ĐỒNG ===
+            st.markdown("### 🤝 Ma trận độ tương đồng cảm xúc")
+
+            # Tính ma trận tương đồng từng cặp
+            n = len(results)
+            sim_matrix    = np.zeros((n, n))
+            corr_v_matrix = np.zeros((n, n))
+            corr_a_matrix = np.zeros((n, n))
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        sim_matrix[i, j]    = 1.0
+                        corr_v_matrix[i, j] = 1.0
+                        corr_a_matrix[i, j] = 1.0
+                    else:
+                        min_len = min(len(results[i]['v']), len(results[j]['v']))
+                        cv = np.corrcoef(results[i]['v'][:min_len], results[j]['v'][:min_len])[0, 1]
+                        ca = np.corrcoef(results[i]['a'][:min_len], results[j]['a'][:min_len])[0, 1]
+                        corr_v_matrix[i, j] = cv if not np.isnan(cv) else 0
+                        corr_a_matrix[i, j] = ca if not np.isnan(ca) else 0
+                        sim_matrix[i, j]    = (corr_v_matrix[i, j] + corr_a_matrix[i, j]) / 2
+
+            # Hiển thị heatmap
+            labels_short = [f"Bài {i+1}" for i in range(n)]
+            fig_sim = go.Figure(data=go.Heatmap(
+                z=sim_matrix * 100,
+                x=labels_short, y=labels_short,
+                colorscale='RdYlGn',
+                zmin=-100, zmax=100,
+                text=[[f"{v*100:.0f}%" for v in row] for row in sim_matrix],
+                texttemplate="%{text}",
+                textfont={"size": 14},
+                colorbar=dict(title="Tương đồng (%)"),
+                hovertemplate='<b>%{x} ↔ %{y}</b><br>Tương đồng: %{z:.1f}%<extra></extra>'
+            ))
+            fig_sim.update_layout(
+                template="plotly_white", height=400,
+                title="Ma trận độ tương đồng cảm xúc giữa các bài (%)",
+                paper_bgcolor='rgba(0,0,0,0)',
+            )
+            st.plotly_chart(fig_sim, use_container_width=True)
+
+            # === GIẢI THÍCH ĐỘ TƯƠNG ĐỒNG ===
+            with st.expander("🧮 **Vì sao có độ tương đồng X%?** (Giải thích cách tính)"):
+                if n == 2:
+                    # Trường hợp đặc biệt 2 bài
+                    cv = corr_v_matrix[0, 1]
+                    ca = corr_a_matrix[0, 1]
+                    sim = sim_matrix[0, 1]
+
+                    st.markdown(f"""
+                    #### 📐 Công thức tính độ tương đồng
+
+                    **Độ tương đồng** = trung bình cộng của 2 hệ số tương quan Pearson:
+
+                    1. **Tương quan Valence** = `{cv:.3f}` (giữa 2 đường Valence của Bài 1 và Bài 2)
+                    2. **Tương quan Arousal** = `{ca:.3f}` (giữa 2 đường Arousal của Bài 1 và Bài 2)
+
+                    **→ Độ tương đồng = ({cv:.3f} + {ca:.3f}) / 2 = {sim:.3f} = {sim*100:.1f}%**
+
+                    #### 🎯 Ý nghĩa hệ số Pearson Correlation
+
+                    | Hệ số | Ý nghĩa | Ví dụ |
+                    |---|---|---|
+                    | **+1.0 (+100%)** | HOÀN TOÀN GIỐNG | Cả 2 bài cùng vui lên cùng buồn xuống |
+                    | **+0.7 (+70%)** | Rất giống | Xu hướng tương tự, vài chỗ lệch |
+                    | **+0.5 (+50%)** | Khá giống | Có nét chung nhưng cũng khác biệt |
+                    | **0.0 (0%)** | Không liên quan | Hoàn toàn khác nhau |
+                    | **-0.5 (-50%)** | Hơi NGƯỢC | Khi bài 1 vui thì bài 2 buồn |
+                    | **-1.0 (-100%)** | HOÀN TOÀN NGƯỢC | 1 lên thì 1 xuống y hệt |
+
+                    #### 💡 Kết luận cho 2 bài này:
+                    """)
+
+                    if sim > 0.7:
+                        st.success(f"✅ **Cảm xúc RẤT GIỐNG NHAU ({sim*100:.1f}%)** — 2 bài có cùng kiểu thay đổi cảm xúc theo thời gian. Có thể cùng thể loại, cùng tâm trạng.")
+                    elif sim > 0.4:
+                        st.info(f"🟡 **Cảm xúc KHÁ GIỐNG ({sim*100:.1f}%)** — Có nhiều điểm chung nhưng cũng có khác biệt rõ rệt.")
+                    elif sim > 0.0:
+                        st.warning(f"🟠 **Cảm xúc CÓ CHÚT GIỐNG ({sim*100:.1f}%)** — Hơi tương đồng nhưng phần lớn khác.")
+                    elif sim > -0.4:
+                        st.warning(f"⚠️ **Cảm xúc KHÁC NHAU ({sim*100:.1f}%)** — 2 bài có cảm xúc khác biệt rõ rệt.")
+                    else:
+                        st.error(f"🔴 **Cảm xúc HOÀN TOÀN NGƯỢC ({sim*100:.1f}%)** — Khi 1 bài vui thì bài kia buồn.")
+                else:
+                    # Trường hợp N > 2: ma trận
+                    st.markdown(f"""
+                    #### 📐 Cách tính độ tương đồng giữa 2 bài bất kỳ
+
+                    Với **mỗi cặp bài (i, j)**, độ tương đồng được tính bằng 3 bước:
+
+                    1. **Tính tương quan Pearson** của Valence theo thời gian → giá trị từ -1 đến +1
+                    2. **Tính tương quan Pearson** của Arousal theo thời gian → giá trị từ -1 đến +1
+                    3. **Độ tương đồng = (tương quan V + tương quan A) / 2** → đổi ra phần trăm
+
+                    #### 📊 Cách đọc ma trận heatmap ở trên
+
+                    - **Mỗi ô (i, j)** = % tương đồng giữa Bài i và Bài j
+                    - **Đường chéo** = 100% (mỗi bài giống chính nó)
+                    - 🟢 **Màu XANH ĐẬM** = Rất giống (>70%)
+                    - 🟡 **Màu VÀNG** = Trung bình (30-70%)
+                    - 🔴 **Màu ĐỎ** = Khác nhau hoặc ngược nhau (<0%)
+
+                    #### 🎯 Phân tích các cặp:
+                    """)
+
+                    # Tìm cặp giống nhất và khác nhất
+                    triu = np.triu(sim_matrix, k=1)  # Upper triangular
+                    if triu.max() > -2:
+                        most_sim_idx = np.unravel_index(triu.argmax(), triu.shape)
+                    else:
+                        most_sim_idx = (0, 1)
+
+                    # Tìm min trong upper triangular (set diagonal/lower về giá trị lớn)
+                    triu_for_min = np.copy(sim_matrix)
+                    for i in range(n):
+                        for j in range(i + 1):
+                            triu_for_min[i, j] = 999
+                    most_diff_idx = np.unravel_index(triu_for_min.argmin(), triu_for_min.shape)
+
+                    st.markdown(f"""
+                    - 🏆 **Cặp giống nhau NHẤT**: Bài {most_sim_idx[0]+1} ↔ Bài {most_sim_idx[1]+1} (**{sim_matrix[most_sim_idx]*100:.1f}%**)
+                    - 🔀 **Cặp khác nhau NHẤT**: Bài {most_diff_idx[0]+1} ↔ Bài {most_diff_idx[1]+1} (**{sim_matrix[most_diff_idx]*100:.1f}%**)
+                    """)
+
+                    # Bảng tương quan chi tiết
+                    st.markdown("##### 📑 Bảng tương quan chi tiết:")
+                    pair_rows = []
+                    for i in range(n):
+                        for j in range(i + 1, n):
+                            pair_rows.append({
+                                "Cặp": f"Bài {i+1} ↔ Bài {j+1}",
+                                "Tương quan V": f"{corr_v_matrix[i,j]:.3f}",
+                                "Tương quan A": f"{corr_a_matrix[i,j]:.3f}",
+                                "Tương đồng": f"{sim_matrix[i,j]*100:.1f}%",
+                            })
+                    st.dataframe(pd.DataFrame(pair_rows), use_container_width=True, hide_index=True)
+
+            # === BUTTONS DOWNLOAD ===
+            st.markdown("### 💾 Tải báo cáo so sánh")
+            dc1, dc2, dc3 = st.columns(3)
+
+            # CSV: time series chi tiết của tất cả bài
+            with dc1:
+                rows = []
+                for i, r in enumerate(results):
+                    for t_idx, t in enumerate(r['times']):
+                        rows.append({
+                            "bai":            f"Bài {i+1}",
+                            "ten_file":       r['name'],
+                            "thoi_gian_giay": float(t),
+                            "valence":        float(r['v'][t_idx]),
+                            "arousal":        float(r['a'][t_idx]),
+                            "cam_xuc":        r['moods'][t_idx],
+                        })
+                csv_data = pd.DataFrame(rows).to_csv(index=False)
+                st.download_button(
+                    "📄 Tải CSV chi tiết",
+                    csv_data,
+                    file_name=f"so_sanh_{n_songs}_bai_chi_tiet.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+
+            # JSON: tổng hợp + ma trận tương đồng
+            with dc2:
+                json_data = json.dumps({
+                    "so_bai":              n_songs,
+                    "thoi_gian_phan_tich": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "model":               selected_model,
+                    "ket_qua_tung_bai": [{
+                        "stt":             i + 1,
+                        "ten_file":        r['name'],
+                        "thoi_luong_giay": r['duration'],
+                        "valence_tb":      r['avg_v'],
+                        "arousal_tb":      r['avg_a'],
+                        "cam_xuc_chu_dao": MOOD_VI[quadrant(r['avg_v'], r['avg_a'])],
+                    } for i, r in enumerate(results)],
+                    "ma_tran_tuong_dong_phan_tram": [
+                        [round(float(sim_matrix[i, j] * 100), 1) for j in range(n)]
+                        for i in range(n)
+                    ],
+                    "ma_tran_tuong_quan_valence": [
+                        [round(float(corr_v_matrix[i, j]), 3) for j in range(n)]
+                        for i in range(n)
+                    ],
+                    "ma_tran_tuong_quan_arousal": [
+                        [round(float(corr_a_matrix[i, j]), 3) for j in range(n)]
+                        for i in range(n)
+                    ],
+                }, indent=2, ensure_ascii=False)
+                st.download_button(
+                    "📊 Tải JSON tổng hợp",
+                    json_data,
+                    file_name=f"so_sanh_{n_songs}_bai_tong_hop.json",
+                    mime="application/json",
+                    use_container_width=True
+                )
+
+            # TXT: báo cáo dạng văn bản
+            with dc3:
+                report = f"""BÁO CÁO SO SÁNH {n_songs} BÀI NHẠC
+====================================================
+Mô hình:   {selected_model}
+Thời gian: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Số bài:    {n_songs}
+
+THÔNG TIN CHI TIẾT TỪNG BÀI:
+"""
+                for i, r in enumerate(results):
+                    mood = quadrant(r['avg_v'], r['avg_a'])
+                    report += f"""
+─── Bài {i+1} ────────────────────────────
+File:            {r['name']}
+Thời lượng:      {r['duration']:.1f}s
+Valence TB:      {r['avg_v']:+.3f}
+Arousal TB:      {r['avg_a']:+.3f}
+Cảm xúc chủ đạo: {MOOD_VI[mood]}
+"""
+                report += "\n\nMA TRẬN ĐỘ TƯƠNG ĐỒNG (%):\n"
+                report += "          " + "  ".join([f"Bài {i+1:2d}" for i in range(n)]) + "\n"
+                for i in range(n):
+                    report += f"Bài {i+1:2d}:    " + "  ".join([f"{sim_matrix[i,j]*100:5.1f}" for j in range(n)]) + "\n"
+
+                report += f"""
+
+GIẢI THÍCH CÔNG THỨC TÍNH ĐỘ TƯƠNG ĐỒNG:
+─────────────────────────────────────────
+Với mỗi cặp bài (i, j):
+  1. Tính tương quan Pearson của Valence theo thời gian → r_V
+  2. Tính tương quan Pearson của Arousal theo thời gian → r_A
+  3. Độ tương đồng = (r_V + r_A) / 2
+
+Ý NGHĨA:
+  +100% : 2 bài có cảm xúc HOÀN TOÀN GIỐNG NHAU
+  +70%  : Rất giống
+  +50%  : Khá giống
+   0%   : Không liên quan
+  -50%  : Hơi NGƯỢC nhau
+  -100% : HOÀN TOÀN NGƯỢC nhau (1 vui thì 1 buồn)
+"""
+                st.download_button(
+                    "📝 Tải báo cáo TXT",
+                    report,
+                    file_name=f"bao_cao_so_sanh_{n_songs}_bai.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
 
         except Exception as e:
-            st.error(f"Lỗi: {e}")
+            st.error(f"❌ Lỗi: {e}")
+            with st.expander("Chi tiết lỗi"):
+                st.code(traceback.format_exc())
 
 
 # =============================================================================
@@ -1301,6 +1631,6 @@ with tab5:
 # =============================================================================
 st.markdown("""
 <div class="footer">
-    🎵 Music Emotion Recognition (MER) |Advanced Machine Learning|  Academic Supervisor: Dr. Ngo Quoc Viet
+    🎵 Music Emotion Recognition (MER) | Advanced Machine Learning |  Academic Supervisor: Dr. Ngo Quoc Viet
 </div>
 """, unsafe_allow_html=True)
