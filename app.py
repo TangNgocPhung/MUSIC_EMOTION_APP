@@ -576,7 +576,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("""
     <div style='text-align:center; color:#9aa5b1; font-size:0.85rem; padding-top:1rem;'>
-        🎓 Master Thesis Demo<br>
+        🎓 Advanced Machine Learning course<br>
         Built with Streamlit + PyTorch
     </div>
     """, unsafe_allow_html=True)
@@ -690,7 +690,7 @@ with tab1:
         st.markdown(f'<div class="insight-box">💡 {insight_text}</div>', unsafe_allow_html=True)
 
         # === GIẢI THÍCH CHI TIẾT CÁCH MODEL QUYẾT ĐỊNH CẢM XÚC ===
-        with st.expander("🎓 **Giải thích chi tiết: Vì sao bài này được phân loại như vậy?** (cho người không chuyên)"):
+        with st.expander("🎓 **Giải thích chi tiết: Vì sao bài này được phân loại như vậy?**"):
             st.markdown(explain_emotion_decision(r['avg_v'], r['avg_a'], r['dominant_mood']))
 
             st.markdown("---")
@@ -752,7 +752,7 @@ with tab1:
         st.plotly_chart(fig_timeline, use_container_width=True)
 
         # === GIẢI THÍCH CÁCH ĐỌC BIỂU ĐỒ TIMELINE ===
-        with st.expander("📖 **Cách đọc biểu đồ này** (cho người không chuyên)"):
+        with st.expander("📖 **Cách đọc biểu đồ này**"):
             # Phân tích xu hướng thực tế của bài nhạc
             v_start = float(np.mean(v_arr[:5])); v_end = float(np.mean(v_arr[-5:]))
             a_start = float(np.mean(a_arr[:5])); a_end = float(np.mean(a_arr[-5:]))
