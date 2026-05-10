@@ -175,7 +175,6 @@ def smooth_predictions(arr, window=5):
 
 
 # =============================================================================
-# 3.1. HÀM SINH GIẢI THÍCH DÀNH CHO NGƯỜI KHÔNG CHUYÊN
 # =============================================================================
 def describe_valence(v):
     """Mô tả mức Valence bằng ngôn ngữ thường."""
@@ -1596,7 +1595,7 @@ with tab3:
             </div>""", unsafe_allow_html=True)
 
         # === GIẢI THÍCH 4 CHỈ SỐ + PHÂN TÍCH BÀI HIỆN TẠI ===
-        with st.expander("ℹ️ **Hiểu 4 chỉ số này** (cho người không chuyên)", expanded=True):
+        with st.expander("ℹ️ **Hiểu 4 chỉ số này** ", expanded=True):
             # Phân loại tempo
             if tempo_val < 60:        tempo_desc = "**RẤT CHẬM** (Largo) — Như nhạc thiền, ballad chậm"
             elif tempo_val < 80:      tempo_desc = "**CHẬM** (Adagio) — Như slow ballad, lo-fi"
